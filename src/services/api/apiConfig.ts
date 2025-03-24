@@ -6,27 +6,28 @@ import { ApiConfigMap } from './types';
  */
 export const API_CONFIG: ApiConfigMap = {
   development: {
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+    baseURL: process.env.REACT_APP_API_URL || 'http://142.93.246.123:4001/api',
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json'
     }
   },
   test: {
-    baseURL: 'https://test-api.ho-tech.com/api',
+    baseURL: '',
     timeout: 12000,
     headers: {
       'Content-Type': 'application/json'
     }
   },
   production: {
-    baseURL: 'https://api.ho-tech.com/api',
+    baseURL: 'http://142.93.246.123:4001/api', 
     timeout: 15000,
     headers: {
       'Content-Type': 'application/json'
     }
   }
 };
+
 
 /**
  * Determina el entorno actual basado en variables de entorno

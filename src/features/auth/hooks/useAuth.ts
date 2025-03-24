@@ -71,7 +71,7 @@ export const useAuth = () => {
       setIsAuthenticated(false);
       return { success: true };
     } catch (err) {
-      console.error('Login error:', err); 
+      console.error('Logout error:', err); 
       const errorMessage = 'Error al cerrar sesión';
       setError(errorMessage);
       return { success: false, error: errorMessage };

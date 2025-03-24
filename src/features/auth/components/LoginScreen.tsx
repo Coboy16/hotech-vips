@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { LoginScreenProps } from '../types/auth';
 import { useAuth } from '../hooks/useAuth';
@@ -8,9 +8,10 @@ import { useNavigate } from 'react-router-dom';
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const navigate = useNavigate(); 
+  
   // Estados para el formulario
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
     showPassword: false
   });
@@ -26,7 +27,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     e.preventDefault();
     
     const result = await login({
-      username: formData.username,
+      email: formData.email,
       password: formData.password
     });
     
@@ -126,22 +127,22 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             )}
             
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Usuario
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Correo Electrónico
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="username"
-                  name="username"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={formData.username}
+                  value={formData.email}
                   onChange={handleInputChange}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
-                  placeholder="Ingrese su usuario"
+                  placeholder="Ingrese su correo electrónico"
                 />
               </div>
             </div>
@@ -207,7 +208,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             
             {/* Mensaje de prueba */}
             <div className="text-center text-xs text-gray-500">
-              <p>Usar usuario: <strong>admin</strong> y contraseña: <strong>admin</strong> para pruebas</p>
+              <p>Usar correo: <strong>admin@gmail.com</strong> y contraseña: <strong>12345</strong> para pruebas</p>
             </div>
           </form>
         </div>

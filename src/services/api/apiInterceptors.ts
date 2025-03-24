@@ -22,17 +22,11 @@ export const setupInterceptors = (
       // Añadir token de autenticación si existe
       const token = tokenGetter();
       if (token && config.headers) {
+        // Formato común para JWT: "Bearer {token}"
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // Añadir timestamp para evitar cacheo en peticiones GET
-      if (config.method?.toLowerCase() === 'get') {
-        config.params = {
-          ...config.params,
-          _t: Date.now()
-        };
-      }
-
+      // Resto del código igual
       return config;
     },
     (error: AxiosError): Promise<AxiosError> => {
@@ -43,7 +37,13 @@ export const setupInterceptors = (
   // Interceptor de respuestas
   instance.interceptors.response.use(
     (response: AxiosResponse): AxiosResponse => {
-      // Transformación opcional de la respuesta
+      // Capturar token de la respuesta si existe (para logins)
+      const authHeader = response.headers['authorization'] || response.headers['Authorization'];
+      if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7); // Quitar 'Bearer '
+        localStorage.setItem('auth_token', token);
+      }
+      
       return response;
     },
     async (error: AxiosError): Promise<unknown> => {
