@@ -1,6 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { setupInterceptors } from './apiInterceptors';
-import { ApiErrorHandler } from './apiErrorHandler';
 import { getApiConfig } from './apiConfig';
 import { ApiClientInterface, ApiRequestOptions, HttpMethod } from './types';
 
@@ -94,13 +93,6 @@ public async request<T>(
     throw error;
   }
 }
-
-  /**
-   * Verifica si una respuesta tiene el formato ApiResponse
-   */
-  // private isApiResponse(data: unknown): data is ApiResponse {
-  //   return Boolean(data && typeof data === 'object' && 'success' in data);
-  // }
 
   /**
    * Realiza una petición GET

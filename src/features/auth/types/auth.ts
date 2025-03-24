@@ -1,4 +1,3 @@
-// src/features/auth/types/auth.ts
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -6,7 +5,7 @@ export interface LoginCredentials {
 
 export interface User {
   user_id: string;
-  password?: string; // No lo usaremos en la interfaz
+  password?: string; 
   usua_corr: string;
   usua_noco: string;
   usua_nomb: string;
