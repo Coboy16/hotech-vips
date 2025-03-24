@@ -10,5 +10,14 @@ export default defineConfig({
       REACT_APP_API_URL: JSON.stringify(process.env.REACT_APP_API_URL || 'http://142.93.246.123:4001/api'),
       REACT_APP_ENV: JSON.stringify(process.env.REACT_APP_ENV || '')
     }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://142.93.246.123:4001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
   }
 })

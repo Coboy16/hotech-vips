@@ -1,13 +1,10 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { setupInterceptors } from './apiInterceptors';
 import { ApiErrorHandler } from './apiErrorHandler';
 import { getApiConfig } from './apiConfig';
-import { ApiClientInterface, ApiRequestOptions, HttpMethod, ApiResponse } from './types';
+import { ApiClientInterface, ApiRequestOptions, HttpMethod } from './types';
 
-/**
- * Implementación del cliente API basado en Axios
- * Proporciona métodos para realizar peticiones HTTP con manejo de errores y configuración.
- */
+
 class ApiClient implements ApiClientInterface {
   private instance: AxiosInstance;
   private tokenGetter: () => string | null;
@@ -60,57 +57,50 @@ class ApiClient implements ApiClientInterface {
    * @param options Opciones adicionales para la petición
    * @returns Promesa con la respuesta procesada
    */
-  public async request<T = unknown>(
-    method: HttpMethod,
-    endpoint: string,
-    data?: unknown,
-    options: ApiRequestOptions = {}
-  ): Promise<T> {
-    try {
-      const config: AxiosRequestConfig = {
-        method,
-        url: endpoint,
-        ...options
-      };
+// src/services/api/apiClient.ts (método request)
+public async request<T>(
+  method: HttpMethod,
+  endpoint: string,
+  data?: unknown,
+  options: ApiRequestOptions = {}
+): Promise<T> {
+  try {
+    const config: AxiosRequestConfig = {
+      method,
+      url: endpoint,
+      ...options
+    };
 
-      // Añadir datos según el método
-      if (method === 'get' || method === 'delete') {
-        config.params = data;
-      } else {
-        config.data = data;
-      }
-
-      // Realizar la petición
-      const response = await this.instance.request<unknown, AxiosResponse<ApiResponse<T>>>(config);
-      
-      // Verificar si la respuesta tiene formato de ApiResponse
-      if (this.isApiResponse(response.data)) {
-        if (!response.data.success) {
-          throw response.data.error || { message: 'Error en la respuesta' };
-        }
-        return response.data.data as T;
-      }
-      
-      // Si no tiene el formato esperado, devolver directamente
-      return response.data as T;
-    } catch (error) {
-      // Usar el manejador centralizado para procesar el error
-      const processedError = ApiErrorHandler.handleError(error);
-      
-      // Registrar el error para depuración
-      console.error(`API Error (${method.toUpperCase()} ${endpoint}):`, processedError);
-      
-      // Propagar el error procesado
-      throw processedError;
+    // Añadir datos según el método
+    if (method === 'get' || method === 'delete') {
+      config.params = data;
+    } else {
+      config.data = data;
     }
+    
+    // Realizar la petición
+    const response = await this.instance.request<T>(config);
+    
+    // Devolver los datos directamente
+    return response.data;
+  } catch (error) {
+    // Si es un error de Axios con una respuesta del servidor
+    if (axios.isAxiosError(error) && error.response) {
+      // Devolver la respuesta del servidor tal cual
+      return error.response.data as T;
+    }
+    
+    // Para otros tipos de errores
+    throw error;
   }
+}
 
   /**
    * Verifica si una respuesta tiene el formato ApiResponse
    */
-  private isApiResponse(data: unknown): data is ApiResponse {
-    return Boolean(data && typeof data === 'object' && 'success' in data);
-  }
+  // private isApiResponse(data: unknown): data is ApiResponse {
+  //   return Boolean(data && typeof data === 'object' && 'success' in data);
+  // }
 
   /**
    * Realiza una petición GET

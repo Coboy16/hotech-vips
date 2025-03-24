@@ -6,14 +6,10 @@
 /**
  * Endpoints relacionados con autenticación
  */
+// src/services/api/endpoints.ts
 export const AUTH_ENDPOINTS = {
-  LOGIN: '/auth/login',
-  LOGOUT: '/auth/logout',
-  REFRESH_TOKEN: '/auth/refresh-token',
-  RESET_PASSWORD: '/auth/reset-password',
-  FORGOT_PASSWORD: '/auth/forgot-password',
-  VERIFY_EMAIL: '/auth/verify-email',
-  ME: '/auth/me'
+  LOGIN: '/login', 
+  LOGOUT: '/logout', 
 };
 
 /**

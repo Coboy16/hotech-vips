@@ -6,21 +6,21 @@ import { ApiConfigMap } from './types';
  */
 export const API_CONFIG: ApiConfigMap = {
   development: {
-    baseURL: process.env.REACT_APP_API_URL || 'http://142.93.246.123:4001/api',
+    baseURL: '/api', 
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json'
     }
   },
   test: {
-    baseURL: '',
+    baseURL: 'http://142.93.246.123:4001',
     timeout: 12000,
     headers: {
       'Content-Type': 'application/json'
     }
   },
   production: {
-    baseURL: 'http://142.93.246.123:4001/api', 
+    baseURL: 'http://142.93.246.123:4001', 
     timeout: 15000,
     headers: {
       'Content-Type': 'application/json'
