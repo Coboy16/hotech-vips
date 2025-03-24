@@ -1,18 +1,12 @@
+// Exportar componentes
+export { LoginScreen } from './components/LoginScreen';
+export { RecoveryModal } from './components/RecoveryModal';
 
-// Components 
-export * from './components';
+// Exportar contexto y hooks
+export { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// hooks 
-export * from './hooks';
+// Exportar servicios
+export { authService } from './services/authService';
 
-// services 
-export * from './services';
-
-// types
-export * from './types';
-
-// utils 
-export * from './utils';
-
-// Context
-export { AuthProvider, useAuthContext } from './contexts/AuthContext';
+// Exportar tipos
+export type * from './types/auth';

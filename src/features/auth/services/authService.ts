@@ -20,7 +20,9 @@ export const authService = {
     try {
       console.log('Iniciando login con credenciales:', credentials.email);
       
-      const response = await apiClient.post<LoginResponse>(AUTH_ENDPOINTS.LOGIN, credentials);
+      // Solo enviamos email y password a la API, no la opción rememberMe
+      const { email, password } = credentials;
+      const response = await apiClient.post<LoginResponse>(AUTH_ENDPOINTS.LOGIN, { email, password });
       
       console.log('Respuesta de la API:', response);
       
@@ -29,9 +31,8 @@ export const authService = {
         const userData = response.data.user;
         const token = response.data.token;
         
-        // Guardar en localStorage
-        tokenStorage.setToken(token);
-        tokenStorage.setUser(userData);
+        // No guardamos aquí el token/usuario, lo haremos en useAuth para
+        // tener en cuenta la opción rememberMe
         
         return {
           success: true,

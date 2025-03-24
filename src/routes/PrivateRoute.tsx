@@ -1,13 +1,21 @@
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuthContext } from '../features/auth';
+import { useAuth } from '../features/auth';
 
-export const PrivateRoute = () => {
-  const { isAuthenticated, isLoading } = useAuthContext();
-
-  if (isLoading) {
-    // Puedes mostrar un spinner o componente de carga aquí
-    return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
+/**
+ * Componente para rutas privadas
+ * Si el usuario no está autenticado, redirige al login
+ */
+export const PrivateRoute: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  
+  // Si no está autenticado, redirigimos al login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
-
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  
+  // Si está autenticado, mostramos el contenido
+  return <Outlet />;
 };
+
+export default PrivateRoute;

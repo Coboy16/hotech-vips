@@ -1,51 +1,55 @@
 import React, { useState } from 'react';
 import { Lock, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { LoginScreenProps } from '../types/auth';
-import { useAuth } from '../hooks/useAuth';
-import { RecoveryModal } from './RecoveryModal';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { RecoveryModal } from './RecoveryModal';
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
-  const navigate = useNavigate(); 
+export function LoginScreen() {
+  const navigate = useNavigate();
   
   // Estados para el formulario
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    showPassword: false
+    showPassword: false,
+    rememberMe: false
   });
   
   // Estado para el modal de recuperación
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   
-  // Usar el hook de autenticación
+  // Usar el hook de autenticación directamente desde el contexto
   const { login, isLoading, error } = useAuth();
   
   // Manejador del envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const result = await login({
-      email: formData.email,
-      password: formData.password
-    });
-    
-    if (result.success) {
-      toast.success('Inicio de sesión exitoso');
-      // Usando onLogin si está disponible, o navigate si no
-      if (onLogin) {
-        onLogin();
-      } else {
+    try {
+      const result = await login({
+        email: formData.email,
+        password: formData.password,
+        rememberMe: formData.rememberMe
+      });
+      
+      if (result.success) {
+        toast.success('Inicio de sesión exitoso');
+        // Navegar al dashboard usando navigate de react-router-dom
         navigate('/dashboard');
       }
+    } catch (error) {
+      console.error('Error durante el login:', error);
     }
   };
 
   // Actualizar datos del formulario
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
   
   // Alternar visibilidad de la contraseña
@@ -182,6 +186,21 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                   )}
                 </button>
               </div>
+            </div>
+            
+            {/* Opción Recordar sesión */}
+            <div className="flex items-center">
+              <input
+                id="rememberMe"
+                name="rememberMe"
+                type="checkbox"
+                checked={formData.rememberMe}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+                Recordar mi sesión
+              </label>
             </div>
 
             <div className="flex items-center justify-between">

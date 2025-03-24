@@ -1,16 +1,11 @@
-// src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, LoginScreen } from './features/auth';
-import { PrivateRoute, PublicRoute } from './routes';
+import { LoginScreen } from './features/auth/components/LoginScreen';
+import { AuthProvider } from './features/auth/contexts/AuthContext';
+import { DashboardPage } from './pages/temp/DashboardPage';
 
-// Componente Dashboard (placeholder)
-const Dashboard = () => (
-  <div className="min-h-screen bg-gray-100 p-8">
-    <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-    <p>Bienvenido al sistema</p>
-  </div>
-);
+// Importar el hook useAuth directamente desde el contexto
+import { useAuth } from './features/auth/contexts/AuthContext';
 
 // Página 404
 const NotFound = () => (
@@ -23,26 +18,31 @@ const NotFound = () => (
   </div>
 );
 
+// Ruta protegida simple
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Ruta raíz redirige según autenticación */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* Redirigir la ruta raíz a dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
           
-          {/* Rutas públicas */}
-          <Route element={<PublicRoute />}>
-            <Route path="/login" element={<LoginScreen onLogin={() => {}} />} />
-          </Route>
+          {/* Ruta de login */}
+          <Route path="/login" element={<LoginScreen />} />
           
-          {/* Rutas privadas */}
-          <Route element={<PrivateRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* Añade más rutas privadas aquí */}
-          </Route>
+          {/* Ruta del dashboard protegida */}
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <DashboardPage />
+            </PrivateRoute>
+          } />
           
-          {/* Ruta para 404 */}
+          {/* Ruta 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
