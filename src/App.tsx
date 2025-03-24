@@ -3,9 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { LoginScreen } from './features/auth/components/LoginScreen';
 import { AuthProvider } from './features/auth/contexts/AuthContext';
 import { DashboardPage } from './pages/temp/DashboardPage';
-
-// Importar el hook useAuth directamente desde el contexto
-import { useAuth } from './features/auth/contexts/AuthContext';
+import { PrivateRoute } from './routes/PrivateRoute';
 
 // Página 404
 const NotFound = () => (
@@ -18,35 +16,39 @@ const NotFound = () => (
   </div>
 );
 
-// Ruta protegida simple
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
-};
+// Componente principal de la aplicación
+function AppContent() {
+  // Log al montar el componente
+  return (
+    <Router>
+      <Routes>
+        {/* Redirigir la ruta raíz a dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+        
+        {/* Ruta de login */}
+        <Route path="/login" element={<LoginScreen />} />
+        
+        {/* Ruta del dashboard protegida */}
+        <Route path="/dashboard" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        {/* Ruta 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster position="top-right" />
+    </Router>
+  );
+}
 
 function App() {
+  console.log('[App] Renderizando App');
+  
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Redirigir la ruta raíz a dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-          
-          {/* Ruta de login */}
-          <Route path="/login" element={<LoginScreen />} />
-          
-          {/* Ruta del dashboard protegida */}
-          <Route path="/dashboard" element={
-            <PrivateRoute>
-              <DashboardPage />
-            </PrivateRoute>
-          } />
-          
-          {/* Ruta 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-      <Toaster position="top-right" />
+      <AppContent />
     </AuthProvider>
   );
 }

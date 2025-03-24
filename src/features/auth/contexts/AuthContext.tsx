@@ -2,7 +2,6 @@ import React, { createContext, useContext, ReactNode, useState, useEffect } from
 import { User, LoginCredentials, AuthResponse } from '../types/auth';
 import { authService } from '../services/authService';
 import { tokenStorage, StorageType } from '../utils/tokenStorage';
-// import { useNavigate, useLocation } from 'react-router-dom';
 
 // Definir la interfaz para el contexto de autenticación
 interface AuthContextType {
@@ -36,23 +35,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+
   // Verificar la autenticación al cargar el componente
   useEffect(() => {
+    
     const loadAuthState = () => {
+      
       try {
         // Verificar si hay un token válido
-        const token = tokenStorage.getToken();
+        const isUserAuthenticated = tokenStorage.isAuthenticated();
+        console.log('[AuthContext] isUserAuthenticated:', isUserAuthenticated);
         
-        if (token) {
+        if (isUserAuthenticated) {
           // Cargar datos del usuario desde el almacenamiento
           const storedUser = tokenStorage.getUser();
+          console.log('[AuthContext] Usuario recuperado del almacenamiento:', storedUser ? 'Sí' : 'No');
+          
           if (storedUser) {
             setUser(storedUser);
             setIsAuthenticated(true);
+          } else {
+            console.log('[AuthContext] Token encontrado pero sin datos de usuario');
           }
+        } else {
+          console.log('[AuthContext] No se encontró token, usuario no autenticado');
         }
       } catch (error) {
-        console.error('Error al cargar el estado de autenticación:', error);
+        console.error('Error:', error);
         // Limpiar el estado si hay errores
         tokenStorage.clearSession();
         setUser(null);
@@ -66,13 +75,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loadAuthState();
   }, []);
 
+  // Efecto para registrar cambios en el estado de autenticación
+
+
   // Función para realizar el login
   const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    console.log('[AuthContext] Iniciando login con credenciales:', credentials.email);
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await authService.login(credentials);
+      console.log('[AuthContext] Respuesta del login:', response.success ? 'Exitosa' : 'Fallida');
 
       if (response.success && response.user && response.token) {
         // Determinar el tipo de almacenamiento según la opción rememberMe
@@ -80,11 +94,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ? StorageType.LOCAL
           : StorageType.SESSION;
         
+        console.log(`[AuthContext] Guardando sesión como ${credentials.rememberMe ? 'persistente' : 'temporal'}`);
+        
         // Guardar token y datos del usuario
         tokenStorage.setToken(response.token, storageType);
         tokenStorage.setUser(response.user, storageType);
         
-        // Actualizar el estado
         setUser(response.user);
         setIsAuthenticated(true);
         
@@ -99,11 +114,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           errorMsg = "Credenciales inválidas";
         }
         
+        console.log('[AuthContext] Error de autenticación:', errorMsg);
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (error) {
-      console.error('Error durante el login:', error);  
+      console.error('[AuthContext] Error durante el login:', error);  
       const errorMessage = 'Ocurrió un error al iniciar sesión';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -114,14 +130,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Función para realizar el logout
   const logout = async (): Promise<void> => {
+    console.log('[AuthContext] Iniciando logout');
     setIsLoading(true);
     
     try {
       await authService.logout();
+      console.log('[AuthContext] Logout en servidor completado');
     } catch (error) {
-      console.error('Error durante el logout:', error);
+      console.error('[AuthContext] Error durante el logout:', error);
     } finally {
       // Limpiar el estado y el almacenamiento independientemente del resultado
+      console.log('[AuthContext] Limpiando estado local');
       tokenStorage.clearSession();
       setUser(null);
       setIsAuthenticated(false);
@@ -130,7 +149,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Proporcionar el contexto a los componentes hijos
   return (
     <AuthContext.Provider
       value={{

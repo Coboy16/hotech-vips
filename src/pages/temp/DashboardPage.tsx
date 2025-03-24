@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { useAuth } from '../features/auth/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../features/auth/contexts/AuthContext';
 
