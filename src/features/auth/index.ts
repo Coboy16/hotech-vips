@@ -5,11 +5,14 @@ export * from './components';
 // hooks 
 export * from './hooks';
 
-// hooks 
+// services 
 export * from './services';
 
-// hooks 
+// types
 export * from './types';
 
-// hooks 
+// utils 
 export * from './utils';
+
+// Context
+export { AuthProvider, useAuthContext } from './contexts/AuthContext';

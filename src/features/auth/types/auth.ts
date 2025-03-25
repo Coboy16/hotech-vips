@@ -17,7 +17,7 @@ export interface AuthResponse {
 }
 
 export interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export interface LogoutModalProps {

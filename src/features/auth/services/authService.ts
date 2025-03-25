@@ -1,7 +1,7 @@
 import { toast } from 'react-hot-toast';
 import { LoginCredentials, AuthResponse } from '../types/auth';
 import { tokenStorage } from '../utils/tokenStorage';
-import { apiClient } from '../../../services';
+import { apiClient } from '../../../services/api';
 
 /**
  * Servicio para manejar operaciones de autenticación

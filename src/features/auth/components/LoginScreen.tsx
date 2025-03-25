@@ -4,8 +4,10 @@ import { toast } from 'react-hot-toast';
 import { LoginScreenProps } from '../types/auth';
 import { useAuth } from '../hooks/useAuth';
 import { RecoveryModal } from './RecoveryModal';
+import { useNavigate } from 'react-router-dom';
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
+  const navigate = useNavigate(); 
   // Estados para el formulario
   const [formData, setFormData] = useState({
     username: '',
@@ -30,7 +32,12 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     
     if (result.success) {
       toast.success('Inicio de sesión exitoso');
-      onLogin();
+      // Usando onLogin si está disponible, o navigate si no
+      if (onLogin) {
+        onLogin();
+      } else {
+        navigate('/dashboard');
+      }
     }
   };
 
