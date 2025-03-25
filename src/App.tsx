@@ -1,88 +1,88 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { LoginScreen } from './features/auth/components/LoginScreen';
-import { AuthProvider } from './features/auth/contexts/AuthContext';
-import { DashboardPage } from './pages/temp/DashboardPage';
-import { PrivateRoute } from './routes/PrivateRoute';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./features/auth/contexts/AuthContext";
+import { PrivateRoute } from "./routes/PrivateRoute";
+import { PublicRoute } from "./routes/PublicRoute";
+import { MainLayout } from "./components/layout/MainLayout";
+import { generateRoutes } from "./routes/routesConfig";
 
-// Página 404
-const NotFound = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-100">
-    <div className="bg-white p-8 rounded-lg shadow-md text-center">
-      <h1 className="text-4xl font-bold text-red-500 mb-4">404</h1>
-      <p className="text-xl mb-4">Página no encontrada</p>
-      <a href="/" className="text-blue-500 hover:underline">Volver al inicio</a>
+// Lazy loading para optimización
+const LoginScreen = lazy(
+  () => import("./features/auth/components/LoginScreen")
+);
+const NotFoundPage = lazy(() => import("./pages/NotFound/NotFoundPage"));
+
+// Página con estado de carga
+const LoadingScreen = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="p-4 bg-white rounded shadow-md">
+      <div className="flex items-center space-x-2">
+        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span>Cargando...</span>
+      </div>
     </div>
   </div>
 );
 
 // Componente principal de la aplicación
 function AppContent() {
+  // Generar rutas dinámicamente
+  const routes = generateRoutes();
+
   return (
     <Router>
-      <Routes>
-        {/* Redirigir la ruta raíz a dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-        
-        {/* Ruta de login */}
-        <Route path="/login" element={<LoginScreen />} />
-        
-        {/* Ruta del dashboard protegida */}
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        {/* Puedes agregar más rutas protegidas aquí */}
-        <Route path="/employees/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        <Route path="/time-control/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        <Route path="/access/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        <Route path="/reports/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        <Route path="/administration/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        <Route path="/system-config/*" element={
-          <PrivateRoute>
-            <DashboardPage />
-          </PrivateRoute>
-        } />
-        
-        {/* Ruta 404 */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          {/* Redirigir la ruta raíz a dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+
+          {/* Ruta de login */}
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginScreen />
+              </PublicRoute>
+            }
+          />
+
+          {/* Rutas protegidas dentro del layout */}
+          <Route
+            path="/*"
+            element={
+              <PrivateRoute>
+                <MainLayout>
+                  <Routes>
+                    {/* Generar rutas dinámicamente desde la configuración */}
+                    {Object.entries(routes).map(([path, Component]) => (
+                      <Route
+                        key={path}
+                        path={path.replace(/^\//, "")}
+                        element={<Component />}
+                      />
+                    ))}
+
+                    {/* Ruta 404 para rutas no encontradas */}
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </MainLayout>
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
       <Toaster position="top-right" />
     </Router>
   );
 }
 
 function App() {
-  console.log('[App] Renderizando App');
-  
   return (
     <AuthProvider>
       <AppContent />
