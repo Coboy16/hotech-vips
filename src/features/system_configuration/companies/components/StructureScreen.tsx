@@ -1,5 +1,3 @@
-// src/components/StructureScreen.tsx (parte relevante)
-
 import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
@@ -656,3 +654,5 @@ export function StructureScreen() {
     </div>
   );
 }
+
+export default StructureScreen;
