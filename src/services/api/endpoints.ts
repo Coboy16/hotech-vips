@@ -7,37 +7,36 @@
  * Endpoints relacionados con autenticación
  */
 export const AUTH_ENDPOINTS = {
-  LOGIN: '/login', 
-  LOGOUT: '/logout', 
+  LOGIN: "/login",
+  LOGOUT: "/logout",
 };
 
 /**
  * Endpoints relacionados con compañías
  */
 export const COMPANY_ENDPOINTS = {
-  BASE: '/companies',
+  BASE: "/companies",
   DETAIL: (id: string) => `/companies/${id}`,
   UPDATE: (id: string) => `/companies/${id}`,
-  DELETE: (id: string) => `/companies/${id}`
+  DELETE: (id: string) => `/companies/${id}`,
 };
 
 /**
  * Endpoints relacionados con países
  */
 export const COUNTRY_ENDPOINTS = {
-  BASE: '/countries',
-  DETAIL: (id: string) => `/countries/${id}`
+  BASE: "/countries",
+  DETAIL: (id: string) => `/countries/${id}`,
 };
 
 /**
  * Endpoints relacionados con usuarios
  */
 export const USER_ENDPOINTS = {
-  BASE: '/users',
+  BASE: "/users",
   DETAIL: (id: string) => `/users/${id}`,
   UPDATE: (id: string) => `/users/${id}`,
   DELETE: (id: string) => `/users/${id}`,
-  CHANGE_PASSWORD: (id: string) => `/users/${id}/change-password`,
-  UPLOAD_AVATAR: (id: string) => `/users/${id}/avatar`
+  UPDATE_PASSWORD: (id: string) => `/users/password/${id}`,
+  DELETE_BY_EMAIL: (email: string) => `/users/${email}`,
 };
-
