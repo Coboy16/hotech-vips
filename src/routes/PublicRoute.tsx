@@ -1,12 +1,12 @@
-import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../features/auth';
+import React, { ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../features/auth/contexts/AuthContext';
 
-/**
- * Componente para rutas públicas
- * Si el usuario está autenticado, redirige al dashboard
- */
-export const PublicRoute: React.FC = () => {
+interface PublicRouteProps {
+  children: ReactNode;
+}
+
+export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   
@@ -16,7 +16,5 @@ export const PublicRoute: React.FC = () => {
   }
   
   // Si no está autenticado o estamos en otra ruta pública, mostramos el contenido
-  return <Outlet />;
+  return <>{children}</>;
 };
-
-export default PublicRoute;

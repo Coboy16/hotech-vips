@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LoginScreen } from './features/auth/components/LoginScreen';
@@ -18,7 +19,6 @@ const NotFound = () => (
 
 // Componente principal de la aplicación
 function AppContent() {
-  // Log al montar el componente
   return (
     <Router>
       <Routes>
@@ -30,6 +30,43 @@ function AppContent() {
         
         {/* Ruta del dashboard protegida */}
         <Route path="/dashboard" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        {/* Puedes agregar más rutas protegidas aquí */}
+        <Route path="/employees/*" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/time-control/*" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/access/*" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/reports/*" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/administration/*" element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/system-config/*" element={
           <PrivateRoute>
             <DashboardPage />
           </PrivateRoute>
