@@ -6,10 +6,27 @@
 /**
  * Endpoints relacionados con autenticación
  */
-// src/services/api/endpoints.ts
 export const AUTH_ENDPOINTS = {
   LOGIN: '/login', 
   LOGOUT: '/logout', 
+};
+
+/**
+ * Endpoints relacionados con compañías
+ */
+export const COMPANY_ENDPOINTS = {
+  BASE: '/companies',
+  DETAIL: (id: string) => `/companies/${id}`,
+  UPDATE: (id: string) => `/companies/${id}`,
+  DELETE: (id: string) => `/companies/${id}`
+};
+
+/**
+ * Endpoints relacionados con países
+ */
+export const COUNTRY_ENDPOINTS = {
+  BASE: '/countries',
+  DETAIL: (id: string) => `/countries/${id}`
 };
 
 /**
