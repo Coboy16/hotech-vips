@@ -1,12 +1,12 @@
 export interface LoginCredentials {
   email: string;
   password: string;
-  rememberMe?: boolean; 
+  rememberMe?: boolean;
 }
 
 export interface User {
   user_id: string;
-  password?: string; 
+  password?: string;
   usua_corr: string;
   usua_noco: string;
   usua_nomb: string;
@@ -35,6 +35,23 @@ export interface User {
       updated_at: string;
     };
   }>;
+  modules: ModulesPermissions;
+}
+export interface ModulesPermissions {
+  panel_monitoreo: boolean;
+  empleados: boolean;
+  gestion_empleados: boolean;
+  control_tiempo: boolean;
+  planificador_horarios: boolean;
+  gestion_incidencias: boolean;
+  calendario: boolean;
+  control_acceso: boolean;
+  visitantes: boolean;
+  permisos_acceso: boolean;
+  comedor: boolean;
+  reportes: boolean;
+  reportes_mas_usados: boolean;
+  // Puedes agregar más módulos según sea necesario
 }
 
 // Respuesta genérica de la API

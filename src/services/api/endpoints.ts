@@ -40,3 +40,12 @@ export const USER_ENDPOINTS = {
   UPDATE_PASSWORD: (id: string) => `/users/password/${id}`,
   DELETE_BY_EMAIL: (email: string) => `/users/${email}`,
 };
+/**
+ * Endpoints relacionados con licencias de empresas
+ */
+export const LICENSE_ENDPOINTS = {
+  BASE: "/company-licenses",
+  DETAIL: (id: string) => `/company-licenses/${id}`,
+  UPDATE: (id: string) => `/company-licenses/${id}`,
+  DELETE: (id: string) => `/company-licenses/${id}`,
+};

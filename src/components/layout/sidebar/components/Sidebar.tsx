@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { LogOut, ChevronRight, ChevronLeft, Menu } from 'lucide-react';
-import { useSidebarStore } from '../store/sidebarStore';
-import { menuItems } from '../config/menuItems';
-import { MenuItemComponent } from './MenuItem';
+import React, { useState } from "react";
+import { LogOut, ChevronRight, ChevronLeft, Menu } from "lucide-react";
+import { useSidebarStore } from "../store/sidebarStore";
+import { menuItems } from "../config/menuItems";
+import { MenuItemComponent } from "./MenuItem";
+import { useModulePermissions } from "../../../../features/auth/contexts/ModulePermissionsContext";
+import { MenuItem } from "../types";
 
 interface SidebarProps {
   currentView: string;
@@ -11,19 +13,49 @@ interface SidebarProps {
   logoUrl?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  currentView, 
-  setCurrentView, 
+export const Sidebar: React.FC<SidebarProps> = ({
+  currentView,
+  setCurrentView,
   onLogout,
-  logoUrl = "https://i.postimg.cc/jdTNsfWq/Logo-Ho-Tech-Blanco.png" 
+  logoUrl = "https://i.postimg.cc/jdTNsfWq/Logo-Ho-Tech-Blanco.png",
 }) => {
   const { isExpanded, toggleExpanded } = useSidebarStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { hasModuleAccess } = useModulePermissions();
 
-  // Reorder menu items to move administration and system config to the end
-  const reorderedMenuItems = [...menuItems].sort((a, b) => {
-    if (a.id === 'administration' || a.id === 'system-config') return 1;
-    if (b.id === 'administration' || b.id === 'system-config') return -1;
+  // Filtrar elementos del menú según los permisos de módulos
+  const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
+    return items.filter((item) => {
+      // Verificar si el usuario tiene acceso a este módulo
+      const hasAccess = hasModuleAccess(item.modulePermission);
+
+      // Si tiene hijos, filtrar recursivamente
+      if (item.children && item.children.length > 0) {
+        const filteredChildren = filterMenuItems(item.children);
+
+        // Si no tiene hijos después de filtrar y el módulo principal no tiene acceso específico, ocultar
+        if (
+          filteredChildren.length === 0 &&
+          item.modulePermission !== "always_visible"
+        ) {
+          return false;
+        }
+
+        // Actualizar los hijos con los elementos filtrados
+        item.children = filteredChildren;
+      }
+
+      return hasAccess;
+    });
+  };
+
+  // Obtener elementos filtrados
+  const filteredMenuItems = filterMenuItems([...menuItems]);
+
+  // Reordenar el menú (como en tu implementación original)
+  const reorderedMenuItems = [...filteredMenuItems].sort((a, b) => {
+    if (a.id === "administration" || a.id === "system-config") return 1;
+    if (b.id === "administration" || b.id === "system-config") return -1;
     return 0;
   });
 
@@ -41,8 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={`
-          ${isExpanded ? 'w-64' : 'w-20'} 
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isExpanded ? "w-64" : "w-20"} 
+          ${
+            isMobileMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }
           fixed inset-y-0 left-0 lg:relative
           bg-gradient-to-b from-blue-600 to-blue-800 text-white
           flex flex-col transition-all duration-300
@@ -51,10 +87,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <div className="p-6 flex flex-col items-center justify-center">
           <div className="flex items-center justify-center mb-4">
-            <img 
+            <img
               src={logoUrl}
               alt="Company Logo"
-              className={`h-[100px] object-contain transition-all duration-300 ${isExpanded ? 'w-full' : 'w-12'}`}
+              className={`h-[100px] object-contain transition-all duration-300 ${
+                isExpanded ? "w-full" : "w-12"
+              }`}
             />
           </div>
           <button
@@ -70,7 +108,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 space-y-1" aria-label="Sidebar navigation">
+        <nav
+          className="flex-1 overflow-y-auto px-3 space-y-1"
+          aria-label="Sidebar navigation"
+        >
           {reorderedMenuItems.map((item) => (
             <MenuItemComponent
               key={item.id}
