@@ -7,10 +7,12 @@ import {
 import { Suspense, lazy } from "react";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./features/auth/contexts/AuthContext";
+import { ModulePermissionsProvider } from "./features/auth/contexts/ModulePermissionsContext";
 import { PrivateRoute } from "./routes/PrivateRoute";
 import { PublicRoute } from "./routes/PublicRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { generateRoutes } from "./routes/routesConfig";
+import React from "react";
 
 // Lazy loading para optimización
 const LoginScreen = lazy(
@@ -85,7 +87,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ModulePermissionsProvider>
+        <AppContent />
+      </ModulePermissionsProvider>
     </AuthProvider>
   );
 }

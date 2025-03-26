@@ -1,199 +1,227 @@
-import { 
-  BarChart2, 
-  Users, 
-  Clock, 
-  DoorClosed, 
-  Settings, 
-  Building2, 
-  Briefcase, 
-  Calendar, 
-  Fingerprint, 
-  UserCheck, 
-  FileText, 
-  Mail, 
-  Utensils 
-} from 'lucide-react';
-import { MenuItem } from '../types';
+import {
+  BarChart2,
+  Users,
+  Clock,
+  DoorClosed,
+  Settings,
+  Building2,
+  Briefcase,
+  Calendar,
+  Fingerprint,
+  UserCheck,
+  FileText,
+  Mail,
+  Utensils,
+} from "lucide-react";
+import { MenuItem } from "../types";
 
 export const menuItems: MenuItem[] = [
   {
-    id: 'dashboard',
-    label: 'Panel de Monitoreo',
+    id: "dashboard",
+    label: "Panel de Monitoreo",
     icon: BarChart2,
-    path: '/dashboard'
+    path: "/dashboard",
+    modulePermission: "panel_monitoreo",
   },
   {
-    id: 'employees',
-    label: 'Empleados',
+    id: "employees",
+    label: "Empleados",
     icon: Users,
-    path: '/employees',
+    path: "/employees",
+    modulePermission: "empleados",
     children: [
       {
-        id: 'employee-management',
-        label: 'Gestión de Empleados',
+        id: "employee-management",
+        label: "Gestión de Empleados",
         icon: UserCheck,
-        path: '/employees/management'
-      },      
+        path: "/employees/management",
+        modulePermission: "gestion_empleados",
+      },
     ],
   },
   {
-    id: 'time-control',
-    label: 'Control de Tiempo',
+    id: "time-control",
+    label: "Control de Tiempo",
     icon: Clock,
-    path: '/time-control',
+    path: "/time-control",
+    modulePermission: "control_tiempo",
     children: [
       {
-        id: 'schedule-assignment',
-        label: 'Planificador de horarios',
+        id: "schedule-assignment",
+        label: "Planificador de horarios",
         icon: Clock,
-        path: '/employees/schedule'
+        path: "/employees/schedule",
+        modulePermission: "planificador_horarios",
       },
       {
-        id: 'incidencias',
-        label: 'Gestión de Incidencias',
+        id: "incidencias",
+        label: "Gestión de Incidencias",
         icon: Fingerprint,
-        path: '/employees/incidencias'
+        path: "/employees/incidencias",
+        modulePermission: "gestion_incidencias",
       },
       {
-        id: 'calendar',
-        label: 'Calendario',
+        id: "calendar",
+        label: "Calendario",
         icon: Calendar,
-        path: '/employees/calendar'
+        path: "/employees/calendar",
+        modulePermission: "calendario",
       },
-    ]
+    ],
   },
   {
-    id: 'access-control',
-    label: 'Control de Acceso',
+    id: "access-control",
+    label: "Control de Acceso",
     icon: DoorClosed,
-    path: '/access',
+    path: "/access",
+    modulePermission: "control_acceso",
     children: [
       {
-        id: 'visitors',
-        label: 'Visitantes',
+        id: "visitors",
+        label: "Visitantes",
         icon: Users,
-        path: '/access/visitors'
+        path: "/access/visitors",
+        modulePermission: "visitantes",
       },
       {
-        id: 'access-permissions',
-        label: 'Permisos de Acceso',
+        id: "access-permissions",
+        label: "Permisos de Acceso",
         icon: UserCheck,
-        path: '/access/permissions'
+        path: "/access/permissions",
+        modulePermission: "permisos_acceso",
       },
-    ]
+    ],
   },
   {
-    id: 'diner',
-    label: 'Comedor',
+    id: "diner",
+    label: "Comedor",
     icon: Utensils,
-    path: '/system-config/diner',
+    path: "/system-config/diner",
+    modulePermission: "comedor",
   },
   {
-    id: 'reports',
-    label: 'Reportes',
+    id: "reports",
+    label: "Reportes",
     icon: BarChart2,
-    path: '/reports',
+    path: "/reports",
+    modulePermission: "reportes",
     children: [
       {
-        id: 'attendance-reports',
-        label: 'Reportes más usados',
+        id: "attendance-reports",
+        label: "Reportes más usados",
         icon: Clock,
-        path: '/reports/attendance'
-      }
-    ]
+        path: "/reports/attendance",
+        modulePermission: "reportes_mas_usados",
+      },
+    ],
   },
   {
-    id: 'administration',
-    label: 'Administración',
+    id: "administration",
+    label: "Administración",
     icon: Settings,
-    path: '/administration',
+    path: "/administration",
+    modulePermission: "always_visible", // Para módulos administrativos que siempre están visibles
     children: [
       {
-        id: 'licenses',
-        label: 'Gestión de Licencias',
+        id: "licenses",
+        label: "Gestión de Licencias",
         icon: FileText,
-        path: '/administration/licenses'
+        path: "/administration/licenses",
+        modulePermission: "always_visible",
       },
       {
-        id: 'users',
-        label: 'Usuarios',
+        id: "users",
+        label: "Usuarios",
         icon: UserCheck,
-        path: '/administration/users'
+        path: "/administration/users",
+        modulePermission: "always_visible",
       },
       {
-        id: 'perfil',
-        label: 'Perfiles',
+        id: "perfil",
+        label: "Perfiles",
         icon: Users,
-        path: '/administration/perfil'
+        path: "/administration/perfil",
+        modulePermission: "always_visible",
       },
-    ]
+    ],
   },
   {
-    id: 'system-config',
-    label: 'Configuración del Sistema',
+    id: "system-config",
+    label: "Configuración del Sistema",
     icon: Settings,
-    path: '/system-config',
+    path: "/system-config",
+    modulePermission: "always_visible",
     children: [
       {
-        id: 'companies',
-        label: 'Compañías',
+        id: "companies",
+        label: "Compañías",
         icon: Building2,
-        path: '/system-config/structure'
+        path: "/system-config/structure",
+        modulePermission: "always_visible",
       },
       {
-        id: 'devices',
-        label: 'Dispositivos',
+        id: "devices",
+        label: "Dispositivos",
         icon: Fingerprint,
-        path: '/system-config/devices'
+        path: "/system-config/devices",
+        modulePermission: "always_visible",
       },
       {
-        id: 'employee-types',
-        label: 'Tipos de Empleados',
+        id: "employee-types",
+        label: "Tipos de Empleados",
         icon: UserCheck,
-        path: '/system-config/employee-types'
+        path: "/system-config/employee-types",
+        modulePermission: "always_visible",
       },
       {
-        id: 'positions',
-        label: 'Tipos de Acceso',
+        id: "positions",
+        label: "Tipos de Acceso",
         icon: Briefcase,
-        path: '/system-config/positions'
+        path: "/system-config/positions",
+        modulePermission: "always_visible",
       },
       {
-        id: 'email',
-        label: 'Correo electronico',
+        id: "email",
+        label: "Correo electronico",
         icon: Mail,
-        path: '/system-config/email'
+        path: "/system-config/email",
+        modulePermission: "always_visible",
       },
       {
-        id: 'general-config',
-        label: 'Configuración General',
+        id: "general-config",
+        label: "Configuración General",
         icon: Settings,
-        path: '/administration/config'
+        path: "/administration/config",
+        modulePermission: "always_visible",
       },
       {
-        id: 'check-profiles',
-        label: 'Perfiles de Marcaje',
+        id: "check-profiles",
+        label: "Perfiles de Marcaje",
         icon: Clock,
-        path: '/employees/check-profiles'
+        path: "/employees/check-profiles",
+        modulePermission: "always_visible",
       },
       {
-        id: 'geocerca',
-        label: 'Geocerca',
+        id: "geocerca",
+        label: "Geocerca",
         icon: Clock,
-        path: '/employees/geocerca'
+        path: "/employees/geocerca",
+        modulePermission: "always_visible",
       },
       {
-        id: 'contracts',
-        label: 'Modalidad De Tiempo',
+        id: "contracts",
+        label: "Modalidad De Tiempo",
         icon: FileText,
-        path: '/system-config/contracts'
+        path: "/system-config/contracts",
+        modulePermission: "always_visible",
       },
       {
-        id: 'modality',
-        label: 'Turnos de Trabajo',
+        id: "modality",
+        label: "Turnos de Trabajo",
         icon: FileText,
-        path: '/system-config/modality'
+        path: "/system-config/modality",
+        modulePermission: "always_visible",
       },
-    ]
-  }
+    ],
+  },
 ];

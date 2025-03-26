@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon } from "lucide-react";
 
 export interface MenuItem {
   id: string;
@@ -6,4 +6,5 @@ export interface MenuItem {
   icon: LucideIcon;
   path: string;
   children?: MenuItem[];
+  modulePermission: string;
 }
