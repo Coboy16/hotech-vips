@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { lazy } from "react";
 import { menuItems } from "../components/layout/sidebar/config/menuItems";
-import UsersScreen from "../features/administration/users/components/UsersScreen";
 import { MenuItem } from "../components/layout/sidebar/types";
 
 // Importaciones dinámicas para lazy loading
@@ -14,6 +13,14 @@ const StructureScreen = lazy(
       "../features/system_configuration/companies/components/StructureScreen"
     )
 );
+const UsersScreen = lazy(
+  () => import("../features/administration/users/components/UsersScreen")
+);
+
+const LicensesScreen = lazy(
+  () => import("../features/administration/licenses/LicensesScreen")
+);
+
 const NotFoundPage = lazy(() => import("../pages/NotFound/NotFoundPage"));
 
 // Mapeo de rutas a componentes
@@ -21,6 +28,7 @@ const routeComponentMap: Record<string, React.LazyExoticComponent<any>> = {
   "/dashboard": DashboardScreen,
   "/system-config/structure": StructureScreen,
   "/administration/users": UsersScreen,
+  "/administration/licenses": LicensesScreen,
   // Agregar aquí nuevos mapeos cuando se añadan módulos
 };
 
