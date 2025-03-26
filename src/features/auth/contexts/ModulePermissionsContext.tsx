@@ -20,17 +20,17 @@ export const ModulePermissionsProvider: React.FC<{ children: ReactNode }> = ({
   // Por defecto, usar datos estáticos hasta que el backend proporcione los permisos reales
   const staticModulePermissions: ModulesPermissions = {
     panel_monitoreo: true,
-    empleados: true,
-    gestion_empleados: true,
-    control_tiempo: true,
+    empleados: false,
+    gestion_empleados: false,
+    control_tiempo: false,
     planificador_horarios: false,
-    gestion_incidencias: true,
-    calendario: true,
-    control_acceso: true,
-    visitantes: true,
-    permisos_acceso: false,
-    comedor: true,
-    reportes: true,
+    gestion_incidencias: false,
+    calendario: false,
+    control_acceso: false,
+    visitantes: false,
+    permisos_acceso: true,
+    comedor: false,
+    reportes: false,
     reportes_mas_usados: false,
   };
 

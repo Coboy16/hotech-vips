@@ -46,19 +46,20 @@ export const authService = {
 
         // Aquí aseguramos que los módulos se transfieren correctamente
         // Incluso si aún no vienen del backend
-        if (!userData.modules) {
+        if (userData.modules == null) {
+          // Si no hay módulos en la respuesta
           // Datos estáticos para módulos mientras el backend no los proporciona
           userData.modules = {
             panel_monitoreo: true,
             empleados: true,
             gestion_empleados: true,
             control_tiempo: true,
-            planificador_horarios: true,
+            planificador_horarios: true, //
             gestion_incidencias: true,
             calendario: true,
             control_acceso: true,
             visitantes: true,
-            permisos_acceso: false,
+            permisos_acceso: true, //
             comedor: true,
             reportes: true,
             reportes_mas_usados: true,
