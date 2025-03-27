@@ -115,6 +115,9 @@ export function ModuleSelector({
   const [moduleGroups, setModuleGroups] = useState<ModuleGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>(
+    {}
+  );
 
   // Cargar módulos desde la API
   useEffect(() => {
@@ -154,6 +157,26 @@ export function ModuleSelector({
     fetchModules();
   }, []);
 
+  // Actualizar los grupos de módulos cuando cambian los selectedModules de props
+  useEffect(() => {
+    if (moduleGroups.length > 0) {
+      updateSelectedModules();
+    }
+  }, [selectedModules]);
+
+  // Actualizar el estado de selección en los moduleGroups
+  const updateSelectedModules = () => {
+    setModuleGroups((prevGroups) =>
+      prevGroups.map((group) => ({
+        ...group,
+        modules: group.modules.map((module) => ({
+          ...module,
+          isSelected: selectedModules.includes(module.id),
+        })),
+      }))
+    );
+  };
+
   // Inicializar los grupos de módulos con los datos de la API
   const initializeModuleGroups = (allModules: Module[]) => {
     // Crear mapa de nombres de módulos a IDs
@@ -167,7 +190,7 @@ export function ModuleSelector({
     const groups: ModuleGroup[] = groupOrder
       .filter((permissionName) => moduleNameToIdMap.has(permissionName))
       .map((permissionName) => {
-        const childrenPermissions = moduleGroupsStructure[permissionName];
+        const childrenPermissions = moduleGroupsStructure[permissionName] || [];
 
         return {
           id: moduleNameToIdMap.get(permissionName) || "",
@@ -188,57 +211,37 @@ export function ModuleSelector({
         };
       });
 
-    // Marcar cada grupo principal como seleccionado si está en los módulos seleccionados
-    const updatedGroups = groups.map((group) => ({
-      ...group,
-      isSelected: selectedModules.includes(group.id),
-    }));
-
-    setModuleGroups(updatedGroups);
+    setModuleGroups(groups);
   };
 
   // Manejar expansión de un grupo
-  const handleToggleGroup = (groupIndex: number) => {
-    setModuleGroups((prevGroups) =>
-      prevGroups.map((group, idx) =>
-        idx === groupIndex ? { ...group, isExpanded: !group.isExpanded } : group
-      )
-    );
+  const handleToggleGroup = (groupIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupIndex]: !prev[groupIndex],
+    }));
   };
 
   // Manejar selección de un grupo principal
   const handleToggleGroupSelection = (groupIndex: number) => {
-    setModuleGroups((prevGroups) => {
-      const newGroups = [...prevGroups];
-      const group = newGroups[groupIndex];
+    const group = moduleGroups[groupIndex];
+    const willBeSelected = !selectedModules.includes(group.id);
 
-      // Determinar si el grupo estará seleccionado o no
-      const willBeSelected = !selectedModules.includes(group.id);
+    let newSelectedModules = [...selectedModules];
 
-      // Actualizar los submódulos
-      const updatedModules = group.modules.map((module) => ({
-        ...module,
-        isSelected: willBeSelected,
-      }));
-
-      newGroups[groupIndex] = {
-        ...group,
-        modules: updatedModules,
-      };
-
-      // Calcular y emitir los nuevos IDs de módulos seleccionados
-      let newSelectedModules = [...selectedModules];
-
-      // Añadir o quitar el grupo principal
-      if (willBeSelected) {
-        if (!newSelectedModules.includes(group.id)) {
-          newSelectedModules.push(group.id);
-        }
-      } else {
-        newSelectedModules = newSelectedModules.filter((id) => id !== group.id);
+    // Añadir o quitar el grupo principal
+    if (willBeSelected) {
+      if (!newSelectedModules.includes(group.id)) {
+        newSelectedModules.push(group.id);
       }
+    } else {
+      newSelectedModules = newSelectedModules.filter((id) => id !== group.id);
+    }
 
-      // Añadir o quitar los submódulos
+    // Añadir o quitar los submódulos
+    if (group.modules && group.modules.length > 0) {
       group.modules.forEach((module) => {
         if (willBeSelected) {
           if (!newSelectedModules.includes(module.id)) {
@@ -250,12 +253,10 @@ export function ModuleSelector({
           );
         }
       });
+    }
 
-      // Notificar cambio
-      onChange(newSelectedModules);
-
-      return newGroups;
-    });
+    // Notificar cambio
+    onChange(newSelectedModules);
   };
 
   // Manejar selección de un submódulo
@@ -263,38 +264,22 @@ export function ModuleSelector({
     groupIndex: number,
     moduleIndex: number
   ) => {
-    setModuleGroups((prevGroups) => {
-      const newGroups = [...prevGroups];
-      const group = newGroups[groupIndex];
-      const module = group.modules[moduleIndex];
+    const group = moduleGroups[groupIndex];
+    const module = group.modules[moduleIndex];
+    const willBeSelected = !selectedModules.includes(module.id);
 
-      // Determinar si el módulo estará seleccionado o no
-      const willBeSelected = !selectedModules.includes(module.id);
+    let newSelectedModules = [...selectedModules];
 
-      // Actualizar el módulo
-      group.modules[moduleIndex] = {
-        ...module,
-        isSelected: willBeSelected,
-      };
-
-      // Calcular y emitir los nuevos IDs de módulos seleccionados
-      let newSelectedModules = [...selectedModules];
-
-      if (willBeSelected) {
-        if (!newSelectedModules.includes(module.id)) {
-          newSelectedModules.push(module.id);
-        }
-      } else {
-        newSelectedModules = newSelectedModules.filter(
-          (id) => id !== module.id
-        );
+    if (willBeSelected) {
+      if (!newSelectedModules.includes(module.id)) {
+        newSelectedModules.push(module.id);
       }
+    } else {
+      newSelectedModules = newSelectedModules.filter((id) => id !== module.id);
+    }
 
-      // Notificar cambio
-      onChange(newSelectedModules);
-
-      return newGroups;
-    });
+    // Notificar cambio
+    onChange(newSelectedModules);
   };
 
   if (isLoading) {
@@ -344,13 +329,11 @@ export function ModuleSelector({
 
             {group.modules.length > 0 && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleGroup(groupIndex);
-                }}
+                onClick={(e) => handleToggleGroup(groupIndex, e)}
                 className="p-1 rounded-full hover:bg-gray-200"
+                type="button"
               >
-                {group.isExpanded ? (
+                {expandedGroups[groupIndex] ? (
                   <ChevronDown className="h-5 w-5 text-gray-500" />
                 ) : (
                   <ChevronRight className="h-5 w-5 text-gray-500" />
@@ -359,7 +342,7 @@ export function ModuleSelector({
             )}
           </div>
 
-          {group.isExpanded && group.modules.length > 0 && (
+          {expandedGroups[groupIndex] && group.modules.length > 0 && (
             <div className="bg-gray-50 border-t border-gray-200">
               {group.modules.map((module, moduleIndex) => (
                 <div
