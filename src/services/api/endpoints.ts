@@ -45,7 +45,7 @@ export const USER_ENDPOINTS = {
  */
 export const LICENSE_ENDPOINTS = {
   BASE: "/company-licenses",
-  DETAIL: (id: string) => `/company-licenses/${id}`,
+  DETAIL: (id: string) => `/company-licenses/company/${id}`,
   UPDATE: (id: string) => `/company-licenses/${id}`,
   DELETE: (id: string) => `/company-licenses/${id}`,
 };

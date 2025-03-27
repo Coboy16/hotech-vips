@@ -141,12 +141,12 @@ export const licenseService = {
     }
     try {
       console.log(
-        "[licenseService] PATCH request to:",
+        "[licenseService] PUT request to:",
         LICENSE_ENDPOINTS.UPDATE(id),
         "with data:",
         licenseData
       );
-      const response = await apiClient.patch<LicenseResponse>(
+      const response = await apiClient.put<LicenseResponse>(
         LICENSE_ENDPOINTS.UPDATE(id),
         licenseData,
         {
@@ -196,6 +196,43 @@ export const licenseService = {
     } catch (error) {
       console.error("[licenseService] Error al eliminar licencia:", error);
       return false;
+    }
+  },
+
+  /**
+   * Obtiene todos los módulos disponibles
+   */
+  async getAllModules() {
+    const token = tokenStorage.getToken();
+    if (!token) {
+      console.error(
+        "[licenseService] No hay token de autenticación disponible"
+      );
+      return [];
+    }
+    try {
+      const response = await apiClient.get<{
+        statusCode: number;
+        message: string;
+        data: {
+          module_id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        }[];
+      }>("/modules", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.statusCode === 200 && Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
+    } catch (error) {
+      console.error("[licenseService] Error al cargar los módulos:", error);
+      return [];
     }
   },
 };

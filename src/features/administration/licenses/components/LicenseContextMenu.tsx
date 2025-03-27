@@ -1,4 +1,3 @@
-// src/features/administration/licenses/components/LicenseContextMenu.tsx
 import React, { useEffect, useRef } from "react";
 import {
   FileEdit,

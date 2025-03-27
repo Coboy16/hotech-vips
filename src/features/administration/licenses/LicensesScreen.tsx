@@ -1,4 +1,3 @@
-// src/features/administration/licenses/LicensesScreen.tsx
 import React, { useState, useEffect } from "react";
 import {
   Plus,
@@ -134,16 +133,7 @@ export function LicensesScreen() {
         { value: "inactive", label: "Inactivo" },
       ],
     },
-    // module: {
-    //   label: 'Módulo',
-    //   options: [
-    //     { value: 'all', label: 'Todos los módulos' },
-    //     { value: 'Control de Accesos', label: 'Control de Accesos' },
-    //     { value: 'Control de Tiempo', label: 'Control de Tiempo' },
-    //     { value: 'Control de Comedor', label: 'Control de Comedor' },
-    //     { value: 'Control de Capacitación', label: 'Control de Capacitación' }
-    //   ]
-    // },
+
     expiration: {
       label: "Vencimiento",
       options: [
@@ -182,9 +172,26 @@ export function LicensesScreen() {
   };
 
   // Funciones para manejar la edición
-  const handleEdit = (license: License) => {
-    setSelectedLicense(license);
-    setShowForm(true);
+  const handleEdit = async (license: License) => {
+    try {
+      // Opcional: Obtener la licencia más actualizada desde el servidor
+      const freshLicense = await licenseService.getById(license.id);
+
+      if (freshLicense) {
+        const updatedUiLicense = apiToUiLicense(freshLicense);
+        setSelectedLicense(updatedUiLicense);
+      } else {
+        // Si no se puede obtener del servidor, usar la versión de la lista
+        setSelectedLicense(license);
+      }
+
+      setShowForm(true);
+    } catch (error) {
+      console.error("Error al obtener la licencia actualizada:", error);
+      // En caso de error, usar la versión disponible
+      setSelectedLicense(license);
+      setShowForm(true);
+    }
   };
 
   const handleCloseForm = () => {
@@ -198,18 +205,35 @@ export function LicensesScreen() {
       if (selectedLicense) {
         // Actualizar licencia existente
         const apiLicenseData = uiToApiUpdateLicense(formData);
+
+        // Log para depuración
+        console.log(
+          "Datos enviados al servidor para actualizar:",
+          apiLicenseData
+        );
+
         const updatedApiLicense = await licenseService.update(
           selectedLicense.id,
           apiLicenseData
         );
 
         if (updatedApiLicense) {
+          // Convertir la respuesta de la API a nuestro formato de UI
           const updatedUiLicense = apiToUiLicense(updatedApiLicense);
+
+          // Log para depuración
+          console.log("Licencia actualizada recibida:", updatedUiLicense);
+
+          // Actualizar el estado de licencias con la licencia actualizada
           setLicenses(
             licenses.map((lic) =>
               lic.id === updatedUiLicense.id ? updatedUiLicense : lic
             )
           );
+
+          // Actualizar también la licencia seleccionada para que al reabrir muestre los cambios
+          setSelectedLicense(updatedUiLicense);
+
           toast.success("Licencia actualizada correctamente");
         } else {
           toast.error("Error al actualizar la licencia");
@@ -217,10 +241,18 @@ export function LicensesScreen() {
       } else {
         // Crear nueva licencia
         const apiLicenseData = uiToApiCreateLicense(formData);
+
+        // Log para depuración
+        console.log("Datos enviados al servidor para crear:", apiLicenseData);
+
         const newApiLicense = await licenseService.create(apiLicenseData);
 
         if (newApiLicense) {
           const newUiLicense = apiToUiLicense(newApiLicense);
+
+          // Log para depuración
+          console.log("Nueva licencia recibida:", newUiLicense);
+
           setLicenses([...licenses, newUiLicense]);
           toast.success("Licencia creada correctamente");
         } else {

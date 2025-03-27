@@ -5,6 +5,14 @@ export interface LicenseResponse {
   error: string;
 }
 
+export interface ModuleCompanyLicense {
+  module_company_license_id: string;
+  module: {
+    name: string;
+    module_id: string;
+  };
+}
+
 export interface ApiLicense {
   license_id: string;
   company_name: string;
@@ -19,7 +27,10 @@ export interface ApiLicense {
   used_companies?: number;
   active_employees?: number;
   modules?: string[];
+  modules_licence?: ModuleCompanyLicense[];
+  created_at?: string;
   creation_date?: string;
+  updated_at?: string;
   last_update?: string;
   notes?: string;
 }
@@ -71,4 +82,17 @@ export interface License {
     email: string;
     phone: string;
   };
+}
+
+export interface Module {
+  module_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModuleGroup {
+  id: string;
+  label: string;
+  modules: Module[];
 }
