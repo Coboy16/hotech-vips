@@ -1,9 +1,19 @@
-import { ApiLicense, License } from "../types/license";
+import {
+  ApiLicense,
+  License,
+  CreateLicenseDto,
+  UpdateLicenseDto,
+} from "../types/license";
 
 /**
  * Convierte una licencia de la API a nuestro formato interno
  */
 export const apiToUiLicense = (apiLicense: ApiLicense): License => {
+  // Extraer los IDs de módulos de modules_licence si existe
+  const moduleIds = apiLicense.modules_licence
+    ? apiLicense.modules_licence.map((ml) => ml.module.module_id)
+    : apiLicense.modules || [];
+
   return {
     id: apiLicense.license_id,
     companyName: apiLicense.company_name,
@@ -13,10 +23,10 @@ export const apiToUiLicense = (apiLicense: ApiLicense): License => {
     activeEmployees: apiLicense.active_employees || 0,
     allowedEmployees: apiLicense.allowed_employees,
     expirationDate: apiLicense.expiration_date,
-    modules: apiLicense.modules || [],
+    modules: moduleIds,
     status: apiLicense.status ? "active" : "inactive",
-    creationDate: apiLicense.creation_date,
-    lastUpdate: apiLicense.last_update,
+    creationDate: apiLicense.creation_date || apiLicense.created_at,
+    lastUpdate: apiLicense.last_update || apiLicense.updated_at,
     notes: apiLicense.notes,
     contactInfo: {
       name: apiLicense.contact_name,
@@ -31,18 +41,18 @@ export const apiToUiLicense = (apiLicense: ApiLicense): License => {
  */
 export const uiToApiCreateLicense = (
   uiLicense: Partial<License>
-): Record<string, unknown> => {
+): CreateLicenseDto => {
   return {
-    company_name: uiLicense.companyName,
-    rnc: uiLicense.rnc,
-    expiration_date: uiLicense.expirationDate,
-    allowed_companies: uiLicense.allowedCompanies,
-    allowed_employees: uiLicense.allowedEmployees,
-    contact_name: uiLicense.contactInfo?.name,
-    email: uiLicense.contactInfo?.email,
-    phone: uiLicense.contactInfo?.phone,
+    company_name: uiLicense.companyName || "",
+    rnc: uiLicense.rnc || "",
+    expiration_date: uiLicense.expirationDate || "",
+    allowed_companies: uiLicense.allowedCompanies || 1,
+    allowed_employees: uiLicense.allowedEmployees || 100,
+    contact_name: uiLicense.contactInfo?.name || "",
+    email: uiLicense.contactInfo?.email || "",
+    phone: uiLicense.contactInfo?.phone || "",
     status: uiLicense.status === "active",
-    modules: uiLicense.modules,
+    modules: uiLicense.modules || [],
     notes: uiLicense.notes,
   };
 };
@@ -52,9 +62,9 @@ export const uiToApiCreateLicense = (
  */
 export const uiToApiUpdateLicense = (
   uiLicense: Partial<License>
-): Record<string, unknown> => {
+): UpdateLicenseDto => {
   // Creamos un objeto base
-  const apiLicense: Record<string, unknown> = {};
+  const apiLicense: UpdateLicenseDto = {};
 
   // Solo incluimos los campos que existen en la licencia de UI
   if (uiLicense.companyName !== undefined)
@@ -68,7 +78,7 @@ export const uiToApiUpdateLicense = (
     apiLicense.allowed_employees = uiLicense.allowedEmployees;
   if (uiLicense.status !== undefined)
     apiLicense.status = uiLicense.status === "active";
-  if (uiLicense.modules) apiLicense.modules = uiLicense.modules;
+  if (uiLicense.modules !== undefined) apiLicense.modules = uiLicense.modules;
   if (uiLicense.notes !== undefined) apiLicense.notes = uiLicense.notes;
 
   // Añadimos la información de contacto si existe

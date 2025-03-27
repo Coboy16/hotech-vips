@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { License } from "../types/license";
+import { ModuleSelector } from "./ModuleSelector";
 
 interface LicenseFormProps {
   license?: License | null;
@@ -21,24 +22,38 @@ interface LicenseFormProps {
 }
 
 export function LicenseForm({ license, onClose, onSave }: LicenseFormProps) {
+  // Formateamos la fecha de expiración para que funcione correctamente con input type="date"
+  const formatDateForInput = (dateString: string | undefined) => {
+    if (!dateString) return "";
+
+    // Convertimos la fecha a formato YYYY-MM-DD para el input date
+    const date = new Date(dateString);
+    return date.toISOString().split("T")[0];
+  };
+
   const [formData, setFormData] = useState<Partial<License>>(
-    license || {
-      companyName: "",
-      rnc: "",
-      expirationDate: "",
-      allowedCompanies: 1,
-      allowedEmployees: 100,
-      modules: [],
-      contactInfo: {
-        name: "",
-        email: "",
-        phone: "",
-      },
-      status: "active",
-    }
+    license
+      ? {
+          ...license,
+          expirationDate: formatDateForInput(license.expirationDate),
+        }
+      : {
+          companyName: "",
+          rnc: "",
+          expirationDate: "",
+          allowedCompanies: 1,
+          allowedEmployees: 100,
+          modules: [],
+          contactInfo: {
+            name: "",
+            email: "",
+            phone: "",
+          },
+          status: "active",
+        }
   );
 
-  const [activeTab, setActiveTab] = useState("basic"); // "basic" o "contact"
+  const [activeTab, setActiveTab] = useState("basic"); // "basic", "contact" o "modules"
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +79,14 @@ export function LicenseForm({ license, onClose, onSave }: LicenseFormProps) {
     if (days <= 30) return "text-red-500 font-medium";
     if (days <= 90) return "text-yellow-500 font-medium";
     return "text-green-500 font-medium";
+  };
+
+  // Manejar la selección de módulos
+  const handleModulesChange = (selectedModuleIds: string[]) => {
+    setFormData({
+      ...formData,
+      modules: selectedModuleIds,
+    });
   };
 
   return (
@@ -422,6 +445,28 @@ export function LicenseForm({ license, onClose, onSave }: LicenseFormProps) {
               </div>
             </div>
 
+            {/* Módulos Contratados - Nueva pestaña */}
+            {/* <div className={activeTab === "modules" ? "block" : "hidden"}>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h3 className="text-lg font-medium text-blue-800 flex items-center">
+                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                  Configuración de Módulos
+                </h3>
+
+                <p className="text-sm text-gray-600 mt-1 mb-4">
+                  Seleccione los módulos que estarán incluidos en esta licencia.
+                  Puede expandir las categorías para ver los submódulos
+                  disponibles.
+                </p>
+
+                <div className="mt-4">
+                  <ModuleSelector
+                    selectedModules={formData.modules || []}
+                    onChange={handleModulesChange}
+                  />
+                </div>
+              </div>
+            </div> */}
             <div className="space-y-6">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <h3 className="text-lg font-medium text-blue-800 flex items-center">
@@ -429,64 +474,12 @@ export function LicenseForm({ license, onClose, onSave }: LicenseFormProps) {
                   Módulos contratados
                 </h3>
 
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  {[
-                    {
-                      name: "Control de Tiempo",
-                      icon: <Calendar className="w-5 h-5 text-blue-500" />,
-                      description: "Gestión de horarios y asistencia",
-                    },
-                    {
-                      name: "Control de Accesos",
-                      icon: <Building2 className="w-5 h-5 text-green-500" />,
-                      description: "Control de entradas y permisos",
-                    },
-                    {
-                      name: "Control de Comedor",
-                      icon: <Users className="w-5 h-5 text-amber-500" />,
-                      description: "Administración de servicios alimenticios",
-                    },
-                    {
-                      name: "Control de Capacitación",
-                      icon: (
-                        <CheckCircle2 className="w-5 h-5 text-purple-500" />
-                      ),
-                      description: "Gestión de formación del personal",
-                    },
-                  ].map((module) => (
-                    <label
-                      key={module.name}
-                      className="relative flex p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-blue-400 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center h-5">
-                        <input
-                          type="checkbox"
-                          checked={formData.modules?.includes(module.name)}
-                          onChange={(e) => {
-                            const modules = formData.modules || [];
-                            setFormData({
-                              ...formData,
-                              modules: e.target.checked
-                                ? [...modules, module.name]
-                                : modules.filter((m) => m !== module.name),
-                            });
-                          }}
-                          className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="ml-3 flex items-center">
-                        <span className="mr-3">{module.icon}</span>
-                        <div>
-                          <span className="block text-sm font-medium text-gray-900">
-                            {module.name}
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            {module.description}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
+                {/* <div className="mt-4 grid grid-cols-1 gap-3"> */}
+                <div className="mt-4">
+                  <ModuleSelector
+                    selectedModules={formData.modules || []}
+                    onChange={handleModulesChange}
+                  />
                 </div>
               </div>
             </div>
