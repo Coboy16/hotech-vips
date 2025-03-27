@@ -1,4 +1,3 @@
-// src/features/administration/licenses/LicensesScreen.tsx
 import React, { useState, useEffect } from "react";
 import {
   Plus,
@@ -134,16 +133,7 @@ export function LicensesScreen() {
         { value: "inactive", label: "Inactivo" },
       ],
     },
-    // module: {
-    //   label: 'Módulo',
-    //   options: [
-    //     { value: 'all', label: 'Todos los módulos' },
-    //     { value: 'Control de Accesos', label: 'Control de Accesos' },
-    //     { value: 'Control de Tiempo', label: 'Control de Tiempo' },
-    //     { value: 'Control de Comedor', label: 'Control de Comedor' },
-    //     { value: 'Control de Capacitación', label: 'Control de Capacitación' }
-    //   ]
-    // },
+
     expiration: {
       label: "Vencimiento",
       options: [
