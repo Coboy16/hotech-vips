@@ -12,23 +12,9 @@ import {
   Calendar,
   AlertCircle,
 } from "lucide-react";
-import { apiClient } from "../../../../services/api";
-import { tokenStorage } from "../../../auth/utils";
+import { moduleService, Module } from "../services/moduleService";
 
 // Interfaces
-interface Module {
-  module_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ModuleResponse {
-  statusCode: number;
-  message: string;
-  data: Module[];
-}
-
 interface ModuleGroup {
   id: string;
   label: string;
@@ -118,31 +104,24 @@ export function ModuleSelector({
   const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>(
     {}
   );
+  // Módulos disponibles desde la API
+  const [availableModules, setAvailableModules] = useState<Module[]>([]);
 
-  // Cargar módulos desde la API
+  // Cargar módulos desde la API - SOLO UNA VEZ al montar el componente
   useEffect(() => {
     const fetchModules = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const token = tokenStorage.getToken();
-        if (!token) {
-          throw new Error("No hay token de autenticación disponible");
-        }
+        // Usar el servicio de módulos que puede utilizar caché
+        const allModules = await moduleService.getAllModules();
 
-        const response = await apiClient.get<ModuleResponse>("/modules", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.statusCode === 200 && Array.isArray(response.data)) {
-          // Organizar módulos en grupos basados en la estructura definida
-          const allModules = response.data;
-          initializeModuleGroups(allModules);
+        if (allModules.length > 0) {
+          setAvailableModules(allModules);
+          initializeModuleGroups(allModules, selectedModules);
         } else {
-          throw new Error("Formato de respuesta incorrecto");
+          throw new Error("No se pudieron cargar los módulos");
         }
       } catch (err) {
         console.error("Error al cargar módulos:", err);
@@ -155,30 +134,26 @@ export function ModuleSelector({
     };
 
     fetchModules();
-  }, []);
+  }, []); // Array vacío para que solo se ejecute al montar el componente
 
   // Actualizar los grupos de módulos cuando cambian los selectedModules de props
   useEffect(() => {
-    if (moduleGroups.length > 0) {
-      updateSelectedModules();
+    console.log("selectedModules actualizados:", selectedModules);
+    if (availableModules.length > 0) {
+      initializeModuleGroups(availableModules, selectedModules);
     }
-  }, [selectedModules]);
-
-  // Actualizar el estado de selección en los moduleGroups
-  const updateSelectedModules = () => {
-    setModuleGroups((prevGroups) =>
-      prevGroups.map((group) => ({
-        ...group,
-        modules: group.modules.map((module) => ({
-          ...module,
-          isSelected: selectedModules.includes(module.id),
-        })),
-      }))
-    );
-  };
+  }, [selectedModules]); // Dependencia selectedModules
 
   // Inicializar los grupos de módulos con los datos de la API
-  const initializeModuleGroups = (allModules: Module[]) => {
+  const initializeModuleGroups = (
+    allModules: Module[],
+    selectedIds: string[]
+  ) => {
+    console.log(
+      "Inicializando grupos de módulos con seleccionados:",
+      selectedIds
+    );
+
     // Crear mapa de nombres de módulos a IDs
     const moduleNameToIdMap = new Map<string, string>();
 
@@ -192,22 +167,28 @@ export function ModuleSelector({
       .map((permissionName) => {
         const childrenPermissions = moduleGroupsStructure[permissionName] || [];
 
+        const moduleId = moduleNameToIdMap.get(permissionName) || "";
+        // const isSelected = selectedIds.includes(moduleId);
+
         return {
-          id: moduleNameToIdMap.get(permissionName) || "",
+          id: moduleId,
           label: permissionToLabelMap[permissionName] || permissionName,
           permission: permissionName,
           icon: permissionToIconMap[permissionName] || AlertCircle,
           isExpanded: false,
           modules: childrenPermissions
             .filter((childPermission) => moduleNameToIdMap.has(childPermission))
-            .map((childPermission) => ({
-              id: moduleNameToIdMap.get(childPermission) || "",
-              label: permissionToLabelMap[childPermission] || childPermission,
-              permission: childPermission,
-              isSelected: selectedModules.includes(
-                moduleNameToIdMap.get(childPermission) || ""
-              ),
-            })),
+            .map((childPermission) => {
+              const childId = moduleNameToIdMap.get(childPermission) || "";
+              const childSelected = selectedIds.includes(childId);
+
+              return {
+                id: childId,
+                label: permissionToLabelMap[childPermission] || childPermission,
+                permission: childPermission,
+                isSelected: childSelected,
+              };
+            }),
         };
       });
 
@@ -300,6 +281,13 @@ export function ModuleSelector({
       </div>
     );
   }
+
+  // Log para depuración
+  console.log(
+    "Renderizando ModuleSelector con selectedModules:",
+    selectedModules
+  );
+  console.log("Grupos de módulos:", moduleGroups);
 
   return (
     <div className="space-y-4">
