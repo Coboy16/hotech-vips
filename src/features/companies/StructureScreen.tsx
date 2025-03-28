@@ -30,12 +30,12 @@ const nodeTypesConfig: Record<
 export function StructureScreen() {
   // --- Estados de UI ---
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Delay para búsqueda
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [showForm, setShowForm] = useState(false);
   const [nodeForForm, setNodeForForm] = useState<OrganizationalNode | null>(
     null
-  ); // Nodo a editar o padre al crear
-  const [isCreating, setIsCreating] = useState(false); // Distingue entre crear y editar en el form
+  );
+  const [isCreating, setIsCreating] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [nodeToDelete, setNodeToDelete] = useState<OrganizationalNode | null>(
     null
@@ -46,35 +46,38 @@ export function StructureScreen() {
   } | null>(null);
 
   // --- Hook Principal ---
-  // TODO: Obtener el licenseId dinámicamente (ej: desde un selector o contexto)
-  const TEMP_LICENSE_ID = "12cf0e46-963b-40d7-92f7-a2e3b740501b"; // <--- REEMPLAZAR CON LÓGICA REAL
+  // TODO: Reemplazar con lógica real para obtener licenseId
+  const TEMP_LICENSE_ID = "12cf0e46-963b-40d7-92f7-a2e3b740501b"; // <-- TEMPORAL
   const {
     treeData,
     selectedNode,
     loading: loadingTree,
-    saving: isSavingNode, // Renombrado para claridad
-    error: structureError,
+    saving: isSavingNode,
+    error: structureError, // Este es el error del hook
     // Métodos del hook
     addNode,
     updateNode,
-    handleSelectNode, // Usar el selector del hook
-    // loadTree, // Para recargar manualmente
-    // setViewingLicense, // Para cambiar licencia
+    deleteNode, // Asegúrate que el hook lo exporte si confirmDelete lo usa
+    // toggleNodeStatus, // Descomentar si se implementa botón
+    handleSelectNode,
+    // handleToggleExpand, // El árbol display ahora maneja expansión interna
   } = useOrganizationalStructure(TEMP_LICENSE_ID);
 
   // --- Búsqueda ---
   const searchResults = useMemo(() => {
     if (!debouncedSearchTerm) return [];
-
     const term = debouncedSearchTerm.toLowerCase();
     const results: OrganizationalNode[] = [];
     const search = (nodes: OrganizationalNode[]) => {
       nodes.forEach((node) => {
-        if (
-          node.name.toLowerCase().includes(term) ||
-          node.type.toLowerCase().includes(term) ||
-          node.code?.toLowerCase().includes(term)
-        ) {
+        let isMatch = false;
+        if (node.name?.toLowerCase().includes(term)) isMatch = true;
+        if (node.type?.toLowerCase().includes(term)) isMatch = true;
+        if (node.code?.toLowerCase().includes(term)) isMatch = true;
+        // Podrías añadir búsqueda en metadata si es necesario
+        // if (node.metadata?.contact?.managerFullName?.toLowerCase().includes(term)) isMatch = true;
+
+        if (isMatch) {
           results.push(node);
         }
         if (node.children) search(node.children);
@@ -88,13 +91,10 @@ export function StructureScreen() {
   const handleSearch = (term: string) => setSearchTerm(term);
 
   const handleSelectSearchResult = (node: OrganizationalNode) => {
-    handleSelectNode(node); // Usa el handler del hook para seleccionar
-    setSearchTerm(""); // Limpia la búsqueda al seleccionar
+    handleSelectNode(node);
+    setSearchTerm(""); // Limpiar búsqueda
   };
 
-  // Abre el formulario para crear un nodo raíz (Compañía) - Requiere adaptación si API no lo soporta
-
-  // Abre el formulario para crear un hijo del nodo seleccionado
   const handleAddNewChild = (parentNode: OrganizationalNode) => {
     const childType = getChildNodeType(parentNode.type);
     if (!childType) {
@@ -103,19 +103,17 @@ export function StructureScreen() {
       );
       return;
     }
-    setNodeForForm(parentNode); // Pasamos el padre para saber dónde añadir
+    setNodeForForm(parentNode); // Guardamos el padre
     setIsCreating(true);
     setShowForm(true);
   };
 
-  // Abre el formulario para editar el nodo dado
   const handleEdit = (nodeToEdit: OrganizationalNode) => {
-    setNodeForForm(nodeToEdit);
+    setNodeForForm(nodeToEdit); // Guardamos el nodo a editar
     setIsCreating(false);
     setShowForm(true);
   };
 
-  // Abre el modal de confirmación para eliminar
   const handleDelete = (node: OrganizationalNode) => {
     setNodeToDelete(node);
     setShowDeleteConfirmation(true);
@@ -123,39 +121,59 @@ export function StructureScreen() {
 
   // --- Handlers para Acciones (Submit, Confirm) ---
   const handleSubmitForm = async (formData: NodeFormData, type: NodeType) => {
+    let success = false;
     if (isCreating && nodeForForm) {
       // Creando hijo
-      await addNode(nodeForForm.id, formData, type); // Usa addNode del hook
-      // addNode ya muestra toast y actualiza estado si tiene éxito
+      // Pasamos el ID del padre (nodeForForm.id), los datos del form, y el tipo del *nuevo* nodo
+      const newNode = await addNode(nodeForForm.id, formData, type);
+      success = !!newNode;
     } else if (!isCreating && nodeForForm) {
       // Editando
-      await updateNode(nodeForForm.id, formData); // Usa updateNode del hook
-      // updateNode ya muestra toast y actualiza estado
+      // Pasamos el ID del nodo a editar (nodeForForm.id) y los datos del form
+      const updatedNode = await updateNode(nodeForForm.id, formData);
+      success = !!updatedNode;
     } else {
-      console.error("Estado inválido para guardar formulario");
+      console.error(
+        "Estado inválido para guardar formulario (isCreating o nodeForForm incorrecto)"
+      );
       notify.error("No se pudo determinar la acción a realizar.");
     }
-    // Cerramos el formulario independientemente del resultado (el hook maneja errores)
-    setShowForm(false);
+
+    if (success) {
+      setShowForm(false); // Cerrar el formulario solo si la operación fue exitosa (según el hook)
+    }
+    // Los toasts de éxito/error ya los maneja el hook `useOrganizationalStructure`
   };
 
   const confirmDelete = async () => {
     if (!nodeToDelete) return;
-    // deleteNode ya muestra toast y actualiza estado
+    // const nodeName = nodeToDelete.name; // Guardar nombre para el toast
+    const success = await deleteNode(nodeToDelete.id); // Usa deleteNode del hook
     setShowDeleteConfirmation(false);
-    setNodeToDelete(null);
-    // Si el nodo eliminado era el seleccionado, deseleccionar
-    if (selectedNode?.id === nodeToDelete?.id) {
-      handleSelectNode(null);
+    if (success) {
+      // El hook ya actualiza treeData y muestra toast
+      if (selectedNode?.id === nodeToDelete?.id) {
+        handleSelectNode(null); // Deseleccionar si se eliminó el nodo seleccionado
+      }
+      setNodeToDelete(null);
+    } else {
+      // El hook ya mostró el toast de error
+      setNodeToDelete(null); // Asegurarse de limpiar incluso si falló
     }
   };
 
-  // --- Efecto para mostrar errores del hook ---
+  // --- Efecto para mostrar errores generales del hook ---
   useEffect(() => {
     if (structureError) {
-      // Usamos el Toast local o react-hot-toast si prefieres consistencia
-      setLocalToast({ type: "error", message: structureError });
-      // notify.error(structureError); // Alternativa
+      // **ASEGURARSE QUE structureError ES UN STRING**
+      const errorMessage =
+        typeof structureError === "string"
+          ? structureError
+          : "Ocurrió un error inesperado cargando la estructura."; // Mensaje fallback
+
+      // Usa tu componente Toast local o react-hot-toast
+      setLocalToast({ type: "error", message: errorMessage });
+      // O usa notify: notify.error(errorMessage, { id: 'structure-error' }); // id para evitar duplicados
     }
   }, [structureError]);
 
@@ -170,25 +188,14 @@ export function StructureScreen() {
             <h2 className="text-base sm:text-lg font-medium text-gray-900">
               Estructura Organizacional
             </h2>
-            {/* Botón Añadir Raíz (Compañía) - Deshabilitado si API no soporta */}
-            {/*
-                    <button
-                        onClick={handleAddNewRoot}
-                        className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg disabled:opacity-50"
-                        title="Agregar Compañía Raíz"
-                        disabled={isSavingNode} // Deshabilitar si se está guardando algo
-                    >
-                        <Plus className="w-5 h-5" />
-                    </button>
-                    */}
+            {/* <button onClick={handleAddNewRoot} ... > ... </button> // Botón raíz opcional */}
           </div>
-          {/* Búsqueda */}
           <SearchComponent
             onSearch={handleSearch}
             searchResults={searchResults}
             onSelectNode={handleSelectSearchResult}
             searchTerm={searchTerm}
-            isLoading={loadingTree && searchTerm.length > 0} // Muestra spinner si busca y carga
+            isLoading={loadingTree && !!debouncedSearchTerm} // Indicador mientras busca + carga
           />
         </div>
 
@@ -201,21 +208,19 @@ export function StructureScreen() {
               </div>
             ) : !loadingTree && treeData.length === 0 && !structureError ? (
               <div className="p-4 text-center text-gray-500 text-sm">
-                No hay compañías en esta licencia.
+                No hay estructura definida.
               </div>
             ) : treeData.length > 0 ? (
               <OrganizationalTreeDisplay
                 nodes={treeData}
                 selectedNode={selectedNode}
-                // expandedNodes={expandedNodes} // El display maneja su propio estado de expansión ahora
-                // onToggleExpand={handleToggleExpand} // El display maneja su propio toggle
-                highlightedNodes={new Set(searchResults.map((n) => n.id))} // Resalta resultados
-                onSelectNode={handleSelectNode} // Pasa el selector del hook
-                onAddChild={handleAddNewChild} // Pasa el handler para añadir
-                onEditNode={handleEdit} // Pasa el handler para editar
-                onDeleteNode={handleDelete} // Pasa el handler para eliminar
+                highlightedNodes={new Set(searchResults.map((n) => n.id))}
+                onSelectNode={handleSelectNode}
+                onAddChild={handleAddNewChild}
+                onEditNode={handleEdit}
+                onDeleteNode={handleDelete}
               />
-            ) : null /* Error ya se maneja con toast */
+            ) : null /* Error se muestra en Toast */
           }
         </div>
       </div>
@@ -228,7 +233,7 @@ export function StructureScreen() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onAddChild={handleAddNewChild}
-            isLoading={isSavingNode} // Pasa estado de guardado para deshabilitar botones
+            isLoading={isSavingNode} // Pasa estado de guardado
           />
         ) : (
           <div className="h-full flex items-center justify-center text-gray-500 p-8 text-center">
@@ -241,12 +246,11 @@ export function StructureScreen() {
       {/* Modales */}
       {showForm && (
         <NodeForm
-          // Pasa el nodo a editar O el nodo padre al que se añadirá el hijo
-          node={isCreating ? null : nodeForForm}
-          parentNode={isCreating ? nodeForForm : null}
+          node={isCreating ? null : nodeForForm} // Nodo a editar (null si crea)
+          parentNode={isCreating ? nodeForForm : null} // Padre si crea hijo
           onClose={() => setShowForm(false)}
           onSubmit={handleSubmitForm}
-          isLoading={isSavingNode} // Pasa estado de guardado
+          isLoading={isSavingNode}
         />
       )}
 
@@ -291,3 +295,6 @@ const getChildNodeType = (parentType: NodeType): NodeType | null => {
       return null;
   }
 };
+
+// Exportación por defecto si es el componente principal de la ruta
+export default StructureScreen;

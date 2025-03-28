@@ -4,13 +4,14 @@ import { NodeType } from "../../../../model/organizationalStructure";
 // --- Mensajes de error comunes ---
 const requiredMsg = (field: string) => `${field} es requerido`;
 const invalidFormatMsg = "Formato inválido";
+const invalidUUIDMsg = "ID de país inválido (UUID)";
 
 // --- Esquemas específicos para metadatos si son complejos ---
 const contactSchema = z
   .object({
     managerFullName: z.string().optional(),
     position: z.string().optional(),
-    email: z.string().email(invalidFormatMsg).optional().or(z.literal("")), // Permite vacío o email válido
+    email: z.string().email(invalidFormatMsg).optional().or(z.literal("")),
     phone: z.string().optional(),
     extension: z.string().optional(),
     physicalLocation: z
@@ -21,74 +22,89 @@ const contactSchema = z
       })
       .optional(),
   })
+  .default({}) // Default a objeto vacío para evitar errores si metadata existe pero contact no
   .optional();
 
 const metadataSchema = z
   .object({
-    employeeCount: z.coerce.number().int().min(0).optional(), // Opcional y >= 0
-    countryId: z.string().uuid("ID de país inválido").optional(), // Opcional, debe ser UUID si existe
-    address: z.string().optional(), // Para sucursal
+    employeeCount: z.coerce // Usa coerce para convertir string/null a number
+      .number({ invalid_type_error: "Debe ser un número" })
+      .int("Debe ser entero")
+      .min(0, "No puede ser negativo")
+      .optional(), // Hacer opcional si puede no venir
+    countryId: z.string().uuid(invalidUUIDMsg).optional().or(z.literal("")), // Permite UUID, vacío o undefined
+    address: z.string().optional(),
     contact: contactSchema,
-    // Añadir otros campos de metadatos aquí si los usas
   })
+  .default({}) // Default a objeto vacío para evitar errores al acceder a metadata.contact etc.
   .optional();
 
 // --- Esquema Base para todos los nodos ---
+// Define los campos comunes y sus validaciones básicas
 const baseNodeSchema = z.object({
-  // id: z.string().uuid(), // El ID se genera en backend, no en el form
-  name: z.string().min(1, requiredMsg("Nombre")),
-  type: z.enum(["company", "branch", "department", "section", "unit"]), // El tipo lo determina el contexto o selección
+  name: z.string().trim().min(1, requiredMsg("Nombre")), // trim() para quitar espacios
+  type: z.enum(["company", "branch", "department", "section", "unit"]),
   status: z.enum(["active", "inactive"]),
-  code: z.string().optional(), // RNC para company, código para otros
+  code: z.string().optional(), // Validación específica más adelante
   description: z.string().optional(),
-  // level: z.number().int().min(1), // El nivel se calcula, no se pone en el form
   metadata: metadataSchema,
-  // Campos necesarios para DTOs (se añadirán dinámicamente o al transformar)
-  // company_id, branch_id, department_id, section_id, license_id
 });
 
-// --- Esquema específico para Compañía (refina el base) ---
-// Añade validación para RNC si el tipo es 'company'
-export const companySchema = baseNodeSchema
-  .refine(
-    (data) =>
-      data.type !== "company" ||
-      (typeof data.code === "string" && data.code.trim().length > 0),
-    {
-      message: requiredMsg("RNC / Identificación"),
-      path: ["code"], // Aplica el error al campo 'code'
-    }
-  )
-  .refine(
-    (data) =>
-      data.type !== "company" ||
-      (typeof data.metadata?.countryId === "string" &&
-        data.metadata.countryId.length > 0),
-    {
-      message: requiredMsg("País"),
-      path: ["metadata.countryId"], // Aplica el error al campo 'countryId'
-    }
-  );
+// --- Esquema específico para Compañía ---
+// Extiende el base y añade validaciones específicas para 'company'
+const companySpecificSchema = baseNodeSchema.extend({
+  type: z.literal("company"), // Fija el tipo a 'company'
+  code: z.string().trim().min(1, requiredMsg("RNC / Identificación")), // Hace 'code' requerido
+  metadata: z
+    .object({
+      employeeCount: z.coerce
+        .number({ invalid_type_error: "Debe ser un número" })
+        .int("Debe ser entero")
+        .min(0, "No puede ser negativo")
+        .optional(),
+      countryId: z
+        .string({ required_error: requiredMsg("País") })
+        .uuid(invalidUUIDMsg)
+        .min(1, requiredMsg("País")),
+      address: z.string().optional(),
+      contact: contactSchema,
+    })
+    .optional(),
+});
 
-// --- Esquema para los demás tipos (pueden heredar del base sin refinar tanto) ---
-// No necesitan validación extra de 'code' o 'countryId' como requeridos
-export const genericNodeSchema = baseNodeSchema;
+// --- Esquema específico para Sucursal ---
+const branchSpecificSchema = baseNodeSchema.extend({
+  type: z.literal("branch"),
+  // Podrías añadir validaciones específicas para sucursal si las hubiera
+  // metadata: metadataSchema.extend({ address: z.string().min(1, "Dirección requerida para sucursal") }) // Ejemplo
+});
 
-// --- Esquema Final Discriminado (para validar el formulario completo) ---
-// Aunque el tipo se selecciona fuera, Zod necesita saber qué schema aplicar.
-// Podríamos usar un schema que refine según el tipo, o simplificar asumiendo
-// que la lógica del formulario se asegura de enviar los campos correctos.
-// Vamos a usar el schema base refinado para compañía y el genérico para otros,
-// asumiendo que el *componente* NodeForm mostrará/ocultará campos según el tipo.
-export const nodeFormSchema = z.union([companySchema, genericNodeSchema]);
+// --- Esquemas para los demás tipos (pueden usar el base si no tienen validaciones extra) ---
+const departmentSpecificSchema = baseNodeSchema.extend({
+  type: z.literal("department"),
+});
+const sectionSpecificSchema = baseNodeSchema.extend({
+  type: z.literal("section"),
+});
+const unitSpecificSchema = baseNodeSchema.extend({ type: z.literal("unit") });
+
+// --- Esquema Final Discriminado ---
+// Usa `discriminatedUnion` para validar correctamente según el campo 'type'
+export const nodeFormSchema = z.discriminatedUnion("type", [
+  companySpecificSchema,
+  branchSpecificSchema,
+  departmentSpecificSchema,
+  sectionSpecificSchema,
+  unitSpecificSchema,
+]);
 
 // --- Tipo inferido de Zod para usar en el formulario ---
-// Usaremos el tipo base para el formulario, ya que los campos son mayormente los mismos,
-// y la lógica condicional se maneja en la UI y al transformar a DTO.
-export type NodeFormData = z.infer<typeof baseNodeSchema>;
+// Este tipo representa la estructura de datos validada
+export type NodeFormData = z.infer<typeof nodeFormSchema>;
 
-// Tipo para los valores por defecto, omitiendo campos calculados como 'id' o 'level'
-// y haciendo opcionales los que podrían no estar al inicio.
-export type NodeFormDefaultValues = Partial<Omit<NodeFormData, "type">> & {
-  type?: NodeType;
+// Tipo para los valores por defecto
+// Hacemos opcionales los campos que pueden no tener valor al inicio o son condicionales
+export type NodeFormDefaultValues = Partial<Omit<NodeFormData, "metadata">> & {
+  type: NodeType; // El tipo siempre debe estar presente
+  metadata?: Partial<NodeFormData["metadata"]>; // Metadatos opcionales
 };

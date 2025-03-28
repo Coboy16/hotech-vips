@@ -23,22 +23,26 @@ export const organizationalStructureService = {
     console.log(
       `[OrgStructureService] Solicitando árbol para licencia ID: ${licenseId}`
     );
+    // Usa el endpoint correcto definido en STRUCTURE_ENDPOINTS
     const endpoint = STRUCTURE_ENDPOINTS.GET_TREE_BY_LICENSE(licenseId);
     const response = await makeRequest<
-      ApiLicenseWithCompanies | ApiLicenseWithCompanies[]
-    >("get", endpoint); // La API podría devolver uno o varios
+      ApiLicenseWithCompanies | ApiLicenseWithCompanies[] // La API podría devolver uno o varios según la ruta exacta
+    >("get", endpoint);
 
     let companies: ApiCompany[] = [];
     if (response && response.statusCode === 200 && response.data) {
-      // Normalizar la respuesta (siempre trabajar con un array de licencias)
+      // Normalizar la respuesta (siempre trabajar con un array de licencias para buscar)
       const licensesData = Array.isArray(response.data)
         ? response.data
         : [response.data];
+
       // Encontrar la licencia específica o asumir que es la única si solo viene una
+      // IMPORTANTE: Asegúrate que el ID de licencia realmente esté en la respuesta anidada si es un array
       const targetLicense =
         licensesData.find((lic) => lic.license_id === licenseId) ??
         (licensesData.length === 1 ? licensesData[0] : undefined);
 
+      // Obtener las compañías de la licencia encontrada
       companies = targetLicense?.companies || [];
       console.log(
         `[OrgStructureService] Árbol obtenido para licencia ${licenseId}. ${companies.length} compañías raíz encontradas.`
@@ -59,7 +63,7 @@ export const organizationalStructureService = {
   async getNodeById(nodeType: NodeType, id: string): Promise<ApiNode | null> {
     let endpoint: string;
     switch (nodeType) {
-      // case 'company': endpoint = COMPANY_ENDPOINTS.DETAIL(id); break; // Si existiera
+      // case 'company': endpoint = COMPANY_ENDPOINTS.DETAIL(id); break; // Si existiera endpoint específico para GET /companies/{id}
       case "branch":
         endpoint = STRUCTURE_ENDPOINTS.BRANCH.DETAIL(id);
         break;
@@ -150,8 +154,6 @@ export const organizationalStructureService = {
         `[OrgStructureService] Error al crear nodo ${nodeType}:`,
         response?.message || "Respuesta inválida"
       );
-      // Podrías lanzar un error aquí si prefieres que el hook lo capture explícitamente
-      // throw new Error(response?.message || `Error al crear ${nodeType}`);
       return null;
     }
   },
@@ -250,12 +252,15 @@ export const organizationalStructureService = {
       response.data &&
       !Array.isArray(response.data)
     ) {
-      const newStatus =
-        (response.data as any)[`${nodeType}_status`] ??
-        (response.data as any).comp_stat;
+      // Determinar el nombre del campo de estado según el tipo
+      const statusFieldName = `${nodeType}_status`; // e.g., 'branch_status'
+      const statusValue =
+        (response.data as any)[statusFieldName] ??
+        (response.data as any).comp_stat; // Fallback para comp_stat si es company
+
       console.log(
         `[OrgStructureService] Estado del nodo ${nodeType} ${id} actualizado a: ${
-          newStatus ? "activo" : "inactivo"
+          statusValue ? "activo" : "inactivo"
         }.`
       );
       return response.data;
@@ -297,6 +302,7 @@ export const organizationalStructureService = {
     console.log(
       `[OrgStructureService] Eliminando nodo ${nodeType} ID: ${id}...`
     );
+    // DELETE no suele llevar body
     const response = await makeRequest<unknown>("delete", endpoint); // No esperamos 'data' significativa
 
     // La API podría devolver 200 OK o 204 No Content tras eliminar

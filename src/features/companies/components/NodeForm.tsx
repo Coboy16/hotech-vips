@@ -1,4 +1,4 @@
-// src/features/system_configuration/companies/components/NodeForm.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,27 +11,28 @@ import {
   NodeFormData,
   nodeFormSchema,
   NodeFormDefaultValues,
-} from "../schemas/nodeSchema"; // Importa schema/tipos Zod
-import { useCountries } from "../hooks/useCountries"; // Hook para obtener países
+} from "../schemas/nodeSchema";
+import { useCountries } from "../hooks/useCountries";
+import { getChildNodeType } from "../utils/adapters"; // Importar desde adapters
 
-// Configuración de tipos de nodo (podría moverse a un archivo utilitario)
+// Configuración de tipos de nodo
 const nodeTypesConfig: Record<
   NodeType,
   { label: string; icon: React.ElementType; parentType?: NodeType }
 > = {
   company: { label: "Compañía", icon: Building2 },
-  branch: { label: "Sucursal", icon: Building2, parentType: "company" }, // Asumiendo icono Building2 genérico para sucursal
+  branch: { label: "Sucursal", icon: Building2, parentType: "company" },
   department: { label: "Departamento", icon: Users, parentType: "branch" },
   section: { label: "Sección", icon: FolderTree, parentType: "department" },
   unit: { label: "Unidad", icon: Briefcase, parentType: "section" },
 };
 
 interface NodeFormProps {
-  node?: OrganizationalNode | null; // Nodo existente a editar (formato UI)
-  parentNode?: OrganizationalNode | null; // Nodo padre si se está creando un hijo
+  node?: OrganizationalNode | null;
+  parentNode?: OrganizationalNode | null;
   onClose: () => void;
-  onSubmit: (data: NodeFormData, type: NodeType) => void; // Envía datos validados y el tipo
-  isLoading?: boolean; // Para deshabilitar botón mientras guarda
+  onSubmit: (data: NodeFormData, type: NodeType) => void;
+  isLoading?: boolean;
 }
 
 export function NodeForm({
@@ -41,48 +42,51 @@ export function NodeForm({
   onSubmit,
   isLoading = false,
 }: NodeFormProps) {
-  // Determinar el tipo de nodo a crear/editar
-  // Si editamos, usamos el tipo del nodo. Si creamos, inferimos del padre o default a 'company'.
   const determineNodeType = (): NodeType => {
-    if (node) return node.type; // Editando: usa el tipo existente
+    if (node) return node.type;
     if (parentNode) {
-      // Creando hijo: infiere del padre
-      const childType = getChildNodeType(parentNode.type);
-      return childType || "unit"; // Default a 'unit' si el padre no puede tener hijos (?)
+      const childType = getChildNodeType(parentNode.type); // Usa la función importada
+      // Validar que el padre puede tener hijos del tipo inferido
+      if (!childType) {
+        console.error(
+          `El tipo de nodo padre '${parentNode.type}' no puede tener hijos.`
+        );
+        // Podrías lanzar un error o devolver un tipo por defecto seguro
+        return "unit"; // O el tipo más bajo
+      }
+      return childType;
     }
-    return "company"; // Creando raíz: es una compañía
+    return "company";
   };
 
   const nodeTypeToHandle = determineNodeType();
   const nodeConfig = nodeTypesConfig[nodeTypeToHandle];
 
-  // Hook para obtener países (solo necesario si creamos/editamos compañía)
   const { countries, loading: loadingCountries } = useCountries();
 
   // --- React Hook Form Setup ---
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid, isDirty },
+    formState: { errors, isValid, isDirty }, // isDirty indica si el usuario ha modificado algo
     reset,
     watch,
-    setValue, // Para establecer el tipo dinámicamente
   } = useForm<NodeFormData>({
-    resolver: zodResolver(nodeFormSchema), // Usar el schema Zod combinado
-    mode: "onChange",
-    defaultValues: (): NodeFormDefaultValues => {
-      // Función para calcular valores por defecto
-      const defaults: NodeFormDefaultValues = {
+    resolver: zodResolver(nodeFormSchema),
+    mode: "onChange", // Validar al cambiar para feedback inmediato
+    // **CORRECCIÓN: defaultValues debe ser síncrono o usar async/await correctamente**
+    // Versión Síncrona:
+    defaultValues: (() => {
+      const type = determineNodeType(); // Calcular tipo aquí
+      return {
         name: node?.name || "",
-        type: nodeTypeToHandle, // Establecer el tipo correcto
+        type: type, // Usar el tipo determinado
         status: node?.status || "active",
         code: node?.code || "",
         description: node?.description || "",
         metadata: {
-          employeeCount: node?.metadata?.employeeCount ?? 0,
-          countryId:
-            node?.metadata?.countryId ||
-            (countries.length > 0 ? countries[0].pais_iden : ""),
+          employeeCount: node?.metadata?.employeeCount ?? undefined,
+          countryId: node?.metadata?.countryId || "",
           address: node?.metadata?.address || "",
           contact: {
             managerFullName: node?.metadata?.contact?.managerFullName || "",
@@ -98,60 +102,50 @@ export function NodeForm({
             },
           },
         },
-      };
-      return defaults;
-    },
+      } satisfies NodeFormDefaultValues; // Satisfies para chequeo extra
+    })(),
   });
 
-  // Establecer el tipo en RHF una vez determinado
+  // --- Efectos ---
+  // Resetear el formulario si cambian las props clave (node, parentNode)
+  // Esto es importante si el modal se reutiliza sin desmontarse/remontarse
   useEffect(() => {
-    setValue("type", nodeTypeToHandle);
-  }, [nodeTypeToHandle, setValue]);
-
-  // Resetear el formulario si el nodo o padre cambian
-  useEffect(() => {
-    reset(
-      // Función para calcular valores por defecto
-      {
-        name: node?.name || "",
-        type: nodeTypeToHandle, // Usa el tipo determinado
-        status: node?.status || "active",
-        code: node?.code || "",
-        description: node?.description || "",
-        metadata: {
-          employeeCount: node?.metadata?.employeeCount ?? 0,
-          countryId:
-            node?.metadata?.countryId ||
-            (countries.length > 0 ? countries[0].pais_iden : ""),
-          address: node?.metadata?.address || "",
-          contact: {
-            managerFullName: node?.metadata?.contact?.managerFullName || "",
-            position: node?.metadata?.contact?.position || "",
-            email: node?.metadata?.contact?.email || "",
-            phone: node?.metadata?.contact?.phone || "",
-            extension: node?.metadata?.contact?.extension || "",
-            physicalLocation: {
-              building:
-                node?.metadata?.contact?.physicalLocation?.building || "",
-              floor: node?.metadata?.contact?.physicalLocation?.floor || "",
-              office: node?.metadata?.contact?.physicalLocation?.office || "",
-            },
+    const type = determineNodeType();
+    reset({
+      name: node?.name || "",
+      type: type,
+      status: node?.status || "active",
+      code: node?.code || "",
+      description: node?.description || "",
+      metadata: {
+        employeeCount: node?.metadata?.employeeCount ?? undefined,
+        countryId: node?.metadata?.countryId || "",
+        address: node?.metadata?.address || "",
+        contact: {
+          managerFullName: node?.metadata?.contact?.managerFullName || "",
+          position: node?.metadata?.contact?.position || "",
+          email: node?.metadata?.contact?.email || "",
+          phone: node?.metadata?.contact?.phone || "",
+          extension: node?.metadata?.contact?.extension || "",
+          physicalLocation: {
+            building: node?.metadata?.contact?.physicalLocation?.building || "",
+            floor: node?.metadata?.contact?.physicalLocation?.floor || "",
+            office: node?.metadata?.contact?.physicalLocation?.office || "",
           },
         },
-      }
-    );
-  }, [node, parentNode, nodeTypeToHandle, reset, countries]); // Depende de countries para default countryId
+      },
+    });
+  }, [node, parentNode, reset]); // Quita nodeTypeToHandle, ya se recalcula dentro
 
   // --- Handlers ---
   const handleFormSubmit = (data: NodeFormData) => {
-    // Asegurarse que el 'type' es correcto antes de enviar
-    const finalData = { ...data, type: nodeTypeToHandle };
-    console.log(`Submit ${nodeTypeToHandle}:`, finalData);
-    onSubmit(finalData, nodeTypeToHandle); // Llama a la prop onSubmit
+    // El tipo ya está en data gracias a RHF y el schema discriminado
+    console.log(`Submit ${data.type}:`, data);
+    onSubmit(data, data.type); // Pasamos data (que incluye el tipo) y el tipo explícito
   };
 
-  // Observar tipo para mostrar campos condicionales
-  const watchedType = watch("type", nodeTypeToHandle);
+  // Observar tipo para UI condicional
+  const watchedType = watch("type"); // Observa el tipo gestionado por RHF
 
   // --- Renderizado ---
   return (
@@ -160,9 +154,14 @@ export function NodeForm({
         {/* Encabezado Fijo */}
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <div className="flex items-center space-x-3">
-            {React.createElement(nodeConfig?.icon || Building2, {
-              className: "w-6 h-6 text-blue-600",
-            })}
+            {/* Usa el tipo actual del formulario (watchedType) o el calculado inicialmente */}
+            {React.createElement(
+              nodeTypesConfig[watchedType || nodeTypeToHandle]?.icon ||
+                Building2,
+              {
+                className: "w-6 h-6 text-blue-600",
+              }
+            )}
             <h2 className="text-xl font-semibold text-gray-900">
               {node
                 ? `Editar ${nodeConfig?.label}`
@@ -222,6 +221,7 @@ export function NodeForm({
                     htmlFor="code"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
+                    {/* Usa watchedType para mostrar el label correcto */}
                     {watchedType === "company"
                       ? "RNC / Identificación"
                       : "Código"}
@@ -232,7 +232,7 @@ export function NodeForm({
                   <input
                     id="code"
                     type="text"
-                    {...register("code")} // Zod se encarga de la validación condicional
+                    {...register("code")}
                     className={`input-field ${
                       errors.code ? "border-red-500" : ""
                     }`}
@@ -300,9 +300,10 @@ export function NodeForm({
                         </>
                       )}
                     </select>
-                    {errors.metadata?.countryId && (
+                    {/* Ajuste para mostrar error correctamente */}
+                    {(errors.metadata as any)?.countryId && (
                       <p className="error-message">
-                        {errors.metadata.countryId.message}
+                        {(errors.metadata as any).countryId.message}
                       </p>
                     )}
                   </div>
@@ -588,18 +589,18 @@ export function NodeForm({
                       errors.metadata?.employeeCount ? "border-red-500" : ""
                     }`}
                   />
+                  {/* Corrección: Acceder a message si existe */}
                   {errors.metadata?.employeeCount && (
                     <p className="error-message">
                       {errors.metadata.employeeCount.message}
                     </p>
                   )}
                 </div>
-                {/* Puedes añadir más campos de metadata aquí si es necesario */}
               </div>
             </fieldset>
           </div>
 
-          {/* Placeholder para evitar que los botones fijos tapen contenido */}
+          {/* Placeholder */}
           <div className="h-16"></div>
         </form>
 
@@ -614,9 +615,19 @@ export function NodeForm({
             Cancelar
           </button>
           <button
-            type="button" // Cambiado a button, el submit se maneja con onClick
-            onClick={handleSubmit(handleFormSubmit)} // Llama a RHF handleSubmit aquí
-            disabled={isLoading || !isValid || !isDirty} // Deshabilitar si carga, no es válido o no ha cambiado
+            type="button"
+            onClick={handleSubmit(handleFormSubmit)}
+            // **CONDICIÓN DE DESHABILITADO**
+            // Debe estar habilitado si:
+            // - NO está cargando (isLoading=false)
+            // - Y el formulario es válido (isValid=true)
+            // - Y (estás creando (node=null) O estás editando y has hecho cambios (isDirty=true))
+            disabled={
+              isLoading ||
+              !isValid ||
+              (!node && !isDirty) ||
+              (!!node && !isDirty)
+            }
             className="flex items-center justify-center min-w-[150px] px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
@@ -632,8 +643,9 @@ export function NodeForm({
           </button>
         </div>
 
-        {/* Estilos CSS (igual que en LicenseForm) */}
+        {/* Estilos CSS */}
         <style>{`
+          /* ... (estilos sin cambios) ... */
           .input-field {
             display: block;
             width: 100%;
