@@ -63,7 +63,7 @@ export const LicensesSummary: React.FC<LicensesSummaryProps> = ({
           <p className="text-3xl font-bold text-red-600">
             {criticalExpirations}
           </p>
-          <p className="text-xs text-gray-500">Próximos 30 días</p>
+          <p className="text-xs text-gray-500">Próximos días</p>
         </div>
         <div className="bg-red-100 p-3 rounded-full">
           <AlertTriangle className="h-6 w-6 text-red-500" />

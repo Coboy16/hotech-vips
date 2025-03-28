@@ -11,6 +11,7 @@ import {
   Fingerprint,
   Calendar,
   AlertCircle,
+  AlignCenter,
 } from "lucide-react";
 import { moduleService, Module } from "../services/moduleService";
 
@@ -66,7 +67,7 @@ const permissionToIconMap: Record<string, React.ElementType> = {
   visitantes: Users,
   permisos_acceso: UserCheck,
   comedor: Utensils,
-  reportes: BarChart2,
+  reportes: AlignCenter,
   reportes_mas_usados: Clock,
 };
 

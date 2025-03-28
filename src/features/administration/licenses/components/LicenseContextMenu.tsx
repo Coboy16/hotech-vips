@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import {
-  FileEdit,
-  Trash2,
-  AlertTriangle,
-  DownloadCloud,
-  Clock,
-} from "lucide-react";
+import { FileEdit, Trash2, AlertTriangle, Clock } from "lucide-react";
 import { License } from "../types/license";
 
 interface LicenseContextMenuProps {
@@ -26,7 +20,6 @@ const LicenseContextMenu: React.FC<LicenseContextMenuProps> = ({
   onEdit,
   onDelete,
   onRenew,
-  onExport,
   onHistory,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -77,19 +70,6 @@ const LicenseContextMenu: React.FC<LicenseContextMenuProps> = ({
         >
           <AlertTriangle className="w-4 h-4 mr-2 text-yellow-500" />
           Renovar licencia
-        </button>
-      )}
-
-      {onExport && (
-        <button
-          onClick={() => {
-            onExport(license);
-            onClose();
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-        >
-          <DownloadCloud className="w-4 h-4 mr-2 text-green-500" />
-          Exportar datos
         </button>
       )}
 

@@ -82,6 +82,7 @@ export interface License {
     email: string;
     phone: string;
   };
+  moduleNames?: string[];
 }
 
 export interface Module {

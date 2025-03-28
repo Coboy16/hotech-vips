@@ -3,14 +3,18 @@ import {
   Plus,
   Building2,
   Users,
-  Calendar,
-  CheckCircle2,
   FileEdit,
   MoreVertical,
+  BarChart2,
+  Clock,
+  DoorClosed,
+  Utensils,
+  AlignCenter,
 } from "lucide-react";
 import { licenseService } from "./services/licenseService";
 import {
   apiToUiLicense,
+  formatDateDisplay,
   uiToApiCreateLicense,
   uiToApiUpdateLicense,
 } from "./utils/adapters";
@@ -29,6 +33,9 @@ import Pagination from "../../../components/common/table/Pagination";
 import LicenseGrid from "./components/LicenseGrid";
 import LicenseContextMenu from "./components/LicenseContextMenu";
 import LicensesSummary from "./components/LicensesSummary";
+import LicenseRenewalModal from "./components/LicenseRenewalModal";
+import DeleteLicenseModal from "./components/DeleteLicenseModal";
+import LicenseHistoryModal from "./components/LicenseHistoryModal";
 
 export function LicensesScreen() {
   // Estados básicos
@@ -52,10 +59,45 @@ export function LicensesScreen() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
+  //Estados para modal de renovacion
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [licenseToRenew, setLicenseToRenew] = useState<License | null>(null);
+
   // Estado para menú contextual
   const [contextMenuLicense, setContextMenuLicense] = useState<License | null>(
     null
   );
+
+  // Añadir estos estados en la sección de estados del componente LicensesScreen
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [licenseToDelete, setLicenseToDelete] = useState<License | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [licenseForHistory, setLicenseForHistory] = useState<License | null>(
+    null
+  );
+
+  // Reemplazar la función handleRenewLicense existente con esta:
+  const handleRenewLicense = (license: License) => {
+    setLicenseToRenew(license);
+    setShowRenewalModal(true);
+    // Cerrar el menú contextual si está abierto
+    if (contextMenuLicense) {
+      setContextMenuLicense(null);
+    }
+  };
+
+  // Función para manejar cuando una licencia ha sido renovada
+  const handleLicenseRenewed = (updatedLicense: License) => {
+    // Actualizar la licencia en el estado local
+    setLicenses(
+      licenses.map((lic) =>
+        lic.id === updatedLicense.id ? updatedLicense : lic
+      )
+    );
+    // Cerrar el modal
+    setShowRenewalModal(false);
+    setLicenseToRenew(null);
+  };
 
   // Cargar licencias al montar el componente
   useEffect(() => {
@@ -286,19 +328,6 @@ export function LicensesScreen() {
     handleEdit(license);
   };
 
-  // Funciones para operaciones específicas
-  const handleRenewLicense = (license: License) => {
-    console.log("Renovar licencia:", license.id);
-    // Implementar lógica de renovación - Podría ser un formulario específico o actualización de fecha
-    toast("Funcionalidad de renovación en desarrollo", {
-      icon: "ℹ️",
-      style: {
-        background: "#3b82f6",
-        color: "#fff",
-      },
-    });
-  };
-
   const handleExportLicense = (license: License) => {
     console.log("Exportar datos de licencia:", license.id);
     // Implementar lógica de exportación
@@ -312,32 +341,31 @@ export function LicensesScreen() {
   };
 
   const handleLicenseHistory = (license: License) => {
-    console.log("Ver historial de licencia:", license.id);
-    // Implementar lógica para mostrar historial
-    toast("Funcionalidad de historial en desarrollo", {
-      icon: "ℹ️",
-      style: {
-        background: "#3b82f6",
-        color: "#fff",
-      },
-    });
+    setLicenseForHistory(license);
+    setShowHistoryModal(true);
+    // Cerrar el menú contextual si está abierto
+    if (contextMenuLicense) {
+      setContextMenuLicense(null);
+    }
   };
 
-  const handleDeleteLicense = async (license: License) => {
-    try {
-      // Confirmar antes de eliminar
-      if (
-        !window.confirm(
-          "¿Está seguro de que desea eliminar esta licencia? Esta acción no se puede deshacer."
-        )
-      ) {
-        return;
-      }
+  const handleDeleteLicense = (license: License) => {
+    setLicenseToDelete(license);
+    setShowDeleteModal(true);
+    // Cerrar el menú contextual si está abierto
+    if (contextMenuLicense) {
+      setContextMenuLicense(null);
+    }
+  };
 
-      const success = await licenseService.delete(license.id);
+  const confirmDeleteLicense = async () => {
+    if (!licenseToDelete) return;
+
+    try {
+      const success = await licenseService.delete(licenseToDelete.id);
 
       if (success) {
-        setLicenses(licenses.filter((lic) => lic.id !== license.id));
+        setLicenses(licenses.filter((lic) => lic.id !== licenseToDelete.id));
         toast.success("Licencia eliminada correctamente");
       } else {
         toast.error("Error al eliminar la licencia");
@@ -345,6 +373,9 @@ export function LicensesScreen() {
     } catch (error) {
       console.error("Error al eliminar licencia:", error);
       toast.error("Error al eliminar la licencia");
+    } finally {
+      setShowDeleteModal(false);
+      setLicenseToDelete(null);
     }
   };
 
@@ -360,19 +391,36 @@ export function LicensesScreen() {
     return "success";
   };
 
-  const getModuleIcon = (module: string) => {
-    switch (module) {
-      case "Control de Tiempo":
-        return <CheckCircle2 className="w-5 h-5 text-blue-500" />;
-      case "Control de Accesos":
-        return <Building2 className="w-5 h-5 text-green-500" />;
-      case "Control de Comedor":
-        return <Users className="w-5 h-5 text-amber-500" />;
-      case "Control de Capacitación":
-        return <Calendar className="w-5 h-5 text-purple-500" />;
+  const getModuleIcon = (moduleName: string) => {
+    switch (moduleName) {
+      case "panel_monitoreo":
+        return <BarChart2 className="w-5 h-5 text-blue-500" />;
+      case "empleados":
+        return <Users className="w-5 h-5 text-blue-500" />;
+      case "control_tiempo":
+        return <Clock className="w-5 h-5 text-blue-500" />;
+      case "control_acceso":
+        return <DoorClosed className="w-5 h-5 text-blue-500" />;
+      case "comedor":
+        return <Utensils className="w-5 h-5 text-blue-500" />;
+      case "reportes":
+        return <AlignCenter className="w-5 h-5 text-blue-500" />;
       default:
         return null;
     }
+  };
+
+  const getModuleLabel = (moduleName: string): string => {
+    const labels: Record<string, string> = {
+      panel_monitoreo: "Panel de Monitoreo",
+      empleados: "Empleados",
+      control_tiempo: "Control de Tiempo",
+      control_acceso: "Control de Acceso",
+      comedor: "Comedor",
+      reportes: "Reportes",
+    };
+
+    return labels[moduleName] || moduleName;
   };
 
   // Definición de columnas para la tabla ordenable
@@ -457,7 +505,7 @@ export function LicensesScreen() {
               : "bg-green-100 text-green-800"
           }`}
         >
-          {new Date(license.expirationDate).toLocaleDateString()}
+          {formatDateDisplay(license.expirationDate)}
         </span>
       ),
     },
@@ -466,12 +514,26 @@ export function LicensesScreen() {
       header: "Módulos",
       sortable: false,
       render: (license) => (
-        <div className="flex space-x-2">
-          {license.modules.map((module) => (
-            <div key={module} className="tooltip" data-tip={module}>
-              {getModuleIcon(module)}
-            </div>
-          ))}
+        <div className="flex space-x-3">
+          {license.moduleNames && license.moduleNames.length > 0 ? (
+            license.moduleNames.map((moduleName) => (
+              <div
+                key={moduleName}
+                className="relative group"
+                aria-label={getModuleLabel(moduleName)}
+              >
+                {/* Icono del módulo */}
+                <div>{getModuleIcon(moduleName)}</div>
+
+                {/* Tooltip personalizado */}
+                <div className="absolute z-10 invisible group-hover:visible bg-white text-gray-800 text-xs rounded py-1 px-2 -left-1/2 -bottom-8 whitespace-nowrap opacity-0 group-hover:opacity-100 border border-blue-500 transition-opacity duration-300">
+                  {getModuleLabel(moduleName)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <span className="text-gray-400 text-sm">Sin módulos</span>
+          )}
         </div>
       ),
     },
@@ -651,6 +713,31 @@ export function LicensesScreen() {
             />
           </div>
         </div>
+      )}
+
+      {/* Modal de renovación de licencia */}
+      {showRenewalModal && licenseToRenew && (
+        <LicenseRenewalModal
+          license={licenseToRenew}
+          onClose={() => setShowRenewalModal(false)}
+          onRenewed={handleLicenseRenewed}
+        />
+      )}
+
+      {showDeleteModal && licenseToDelete && (
+        <DeleteLicenseModal
+          license={licenseToDelete}
+          onDelete={confirmDeleteLicense}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      {/* Modal de historial de licencia */}
+      {showHistoryModal && licenseForHistory && (
+        <LicenseHistoryModal
+          license={licenseForHistory}
+          onClose={() => setShowHistoryModal(false)}
+        />
       )}
     </div>
   );
