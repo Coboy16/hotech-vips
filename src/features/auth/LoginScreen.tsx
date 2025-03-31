@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Lock, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { RecoveryModal } from "./RecoveryModal";
+import { useAuth } from "./contexts/AuthContext";
+import { RecoveryModal } from "./components/RecoveryModal";
 
 export function LoginScreen() {
   const navigate = useNavigate();

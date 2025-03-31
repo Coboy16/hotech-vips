@@ -1,101 +1,74 @@
-import { 
-  AxiosInstance, 
-  InternalAxiosRequestConfig, 
-  AxiosResponse, 
-  AxiosError 
-} from 'axios';
-import { ApiErrorHandler } from './apiErrorHandler';
+import {
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+  AxiosResponse,
+  AxiosError,
+} from "axios";
+import { tokenStorage } from "../../features/auth/utils/tokenStorage"; // Ajusta la ruta si es necesario
+import { handleApiError } from "./apiErrorHandler";
 
 /**
- * Configuración de interceptores para Axios
- * Centraliza la lógica de manipulación de peticiones y respuestas
+ * Interceptor de solicitud: Añade el token de autenticación si existe.
  */
-export const setupInterceptors = (
-  instance: AxiosInstance,
-  tokenGetter: () => string | null,
-  refreshTokenFn?: () => Promise<string | null>,
-  onUnauthorized?: () => void
-): AxiosInstance => {
-  // Interceptor de peticiones
-  instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-      // Añadir token de autenticación si existe
-      const token = tokenGetter();
-      if (token && config.headers) {
-        // Formato común para JWT: "Bearer {token}"
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+const requestInterceptor = (
+  config: InternalAxiosRequestConfig
+): InternalAxiosRequestConfig => {
+  const token = tokenStorage.getToken();
+  console.log("[Interceptor Request] Verificando token..."); // Log
 
-      // Resto del código igual
-      return config;
-    },
-    (error: AxiosError): Promise<AxiosError> => {
-      return Promise.reject(error);
-    }
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+    console.log(
+      "[Interceptor Request] Token añadido a la cabecera Authorization."
+    ); // Log
+  } else {
+    console.log("[Interceptor Request] No hay token o cabeceras no definidas."); // Log
+  }
+
+  // Podrías añadir otros headers comunes aquí si es necesario
+  // config.headers['X-Custom-Header'] = 'valor';
+
+  return config;
+};
+
+/**
+ * Interceptor de respuesta: Procesa respuestas exitosas y maneja errores.
+ */
+const responseInterceptor = (response: AxiosResponse): AxiosResponse => {
+  // Procesa respuestas exitosas si es necesario
+  // Por ejemplo, podrías normalizar la estructura de datos aquí, aunque es mejor hacerlo en el servicio específico
+  console.log("[Interceptor Response] Respuesta recibida:", {
+    status: response.status,
+    // data: response.data // Descomentar con precaución, puede ser muy verboso
+  });
+  // Simplemente retornamos la respuesta si es exitosa (2xx)
+  return response;
+};
+
+/**
+ * Interceptor de errores: Maneja errores de red o respuestas con códigos de error.
+ */
+const errorInterceptor = (error: AxiosError): Promise<never> => {
+  // Usamos nuestro manejador de errores centralizado
+  // handleApiError se encargará de mostrar el toast y loguear
+  handleApiError(error);
+
+  // Rechazamos la promesa para que el error pueda ser capturado por el .catch() de la llamada original
+  // Devolvemos el error original o una estructura de error normalizada si lo prefieres
+  // Devolver el error permite a la lógica del servicio/componente reaccionar si es necesario
+  return Promise.reject(error);
+};
+
+/**
+ * Aplica los interceptores a una instancia de Axios.
+ */
+export const applyInterceptors = (axiosInstance: AxiosInstance): void => {
+  axiosInstance.interceptors.request.use(requestInterceptor);
+  axiosInstance.interceptors.response.use(
+    responseInterceptor,
+    errorInterceptor
   );
-
-  // Interceptor de respuestas
-  instance.interceptors.response.use(
-    (response: AxiosResponse): AxiosResponse => {
-      // Capturar token de la respuesta si existe (para logins)
-      const authHeader = response.headers['authorization'] || response.headers['Authorization'];
-      if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7); // Quitar 'Bearer '
-        localStorage.setItem('auth_token', token);
-      }
-      
-      return response;
-    },
-    async (error: AxiosError): Promise<unknown> => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-      
-      // Renovar token si recibimos un 401 y tenemos función de refresh
-      if (error.response?.status === 401 && refreshTokenFn && !originalRequest._retry) {
-        try {
-          originalRequest._retry = true;
-          const newToken = await refreshTokenFn();
-          
-          if (newToken && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return instance(originalRequest);
-          }
-        } catch (refreshError) {
-          console.error('Error refreshing token:', refreshError);
-          // Si falla el refresh, manejamos como no autorizado
-          if (onUnauthorized) {
-            onUnauthorized();
-          }
-        }
-      }
-      
-      // Errores de red (sin respuesta del servidor)
-      if (!error.response) {
-        console.error('Network error:', error.message);
-      }
-
-      // Errores específicos por código de estado
-      switch (error.response?.status) {
-        case 401:
-          if (onUnauthorized) {
-            onUnauthorized();
-          }
-          break;
-        case 403:
-          console.warn('Forbidden resource:', originalRequest.url);
-          break;
-        case 404:
-          console.warn('Resource not found:', originalRequest.url);
-          break;
-        case 500:
-          console.error('Server error:', originalRequest.url);
-          break;
-      }
-
-      // Usar el manejador centralizado de errores
-      const formattedError = ApiErrorHandler.handleError(error);
-      return Promise.reject(formattedError);
-    }
-  );
-
-  return instance;
+  console.log(
+    "[Interceptors] Interceptores de solicitud y respuesta aplicados."
+  ); // Log
 };

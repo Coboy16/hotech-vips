@@ -1,6 +1,2 @@
-
-// Servicios de API
-export * from './api';
-
-// Servicios de almacenamiento
-export * from './storage';
+export * from "./api";
+export * from "./storage";

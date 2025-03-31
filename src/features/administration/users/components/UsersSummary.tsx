@@ -1,5 +1,3 @@
-// src/features/users/components/UsersSummary.tsx
-
 import React from "react";
 import { Users, CheckCircle, XCircle, Shield } from "lucide-react";
 import { User } from "../types/user";

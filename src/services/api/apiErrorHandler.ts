@@ -1,141 +1,69 @@
-import { AxiosError } from 'axios';
-import { toast } from 'react-hot-toast';
+import { AxiosError } from "axios";
+import { toast } from "react-hot-toast";
+import { ApiResponse } from "./types";
 
 /**
- * Clase para manejar errores de API de forma centralizada
+ * Manejador centralizado para errores de API (Axios).
+ * Intenta extraer mensajes significativos del error.
  */
-export class ApiErrorHandler {
-  /**
-   * Maneja los errores de la API y los transforma en un formato estándar
-   */
-  static handleError(error: unknown): {
-    message: string;
-    code: string;
-    status?: number;
-    details?: unknown;
-  } {
-    if (this.isAxiosError(error)) {
-      return this.handleAxiosError(error);
-    }
-    return this.handleGenericError(error);
-  }
+export const handleApiError = (error: unknown): string => {
+  let errorMessage =
+    "Ocurrió un error inesperado. Inténtalo de nuevo más tarde.";
 
-  /**
-   * Determina si un error es de tipo AxiosError
-   */
-  private static isAxiosError(error: unknown): error is AxiosError {
-    return (error as AxiosError).isAxiosError !== undefined;
-  }
+  if (error instanceof AxiosError) {
+    const response = error.response;
+    const data = response?.data as ApiResponse<unknown> | undefined; // Tipar la respuesta
 
-  /**
-   * Maneja errores específicos de Axios
-   */
-  private static handleAxiosError(error: AxiosError): {
-    message: string;
-    code: string;
-    status: number;
-    details?: unknown;
-  } {
-    const status = error.response?.status || 500;
-    let message = 'Error en la petición';
-    let code = 'API_ERROR';
-    let details;
+    console.error("[API Error Handler] Axios Error:", {
+      message: error.message,
+      code: error.code,
+      status: response?.status,
+      data: data, // Loguear la data para depuración
+      config: error.config, // Loguear la configuración de la petición
+    });
 
-    // Intentar extraer detalles del error de la respuesta de la API
-    if (error.response?.data) {
-      const data = error.response.data as {
-        statusCode?: number;
-        message?: string;
-        error?: string;
-        code?: string;
-        details?: unknown;
-      };
-      
-      // Formato específico de la API
-      if (data.statusCode && data.message) {
-        message = data.message;
-        code = `ERROR_${data.statusCode}`;
-        details = data.error || undefined;
-      } 
-      // Formato genérico
-      else {
-        message = data.message || data.error || message;
-        code = data.code || this.getCodeFromStatus(status);
-        details = data.details || undefined;
+    if (response) {
+      // Intentar obtener el mensaje del cuerpo de la respuesta de la API
+      if (data && data.message) {
+        errorMessage = data.message;
+      } else if (data && data.error) {
+        errorMessage = data.error;
       }
+      // Mensajes genéricos basados en el código de estado HTTP
+      else if (response.status === 400) {
+        errorMessage = "Solicitud incorrecta. Verifica los datos enviados.";
+      } else if (response.status === 401) {
+        errorMessage = "No autorizado. Por favor, inicia sesión de nuevo.";
+        // Opcional: Redirigir al login aquí o en un interceptor
+        // window.location.href = '/login';
+      } else if (response.status === 403) {
+        errorMessage = "No tienes permiso para realizar esta acción.";
+      } else if (response.status === 404) {
+        errorMessage = "El recurso solicitado no fue encontrado.";
+      } else if (response.status >= 500) {
+        errorMessage = "Error interno del servidor. Inténtalo más tarde.";
+      }
+    } else if (error.request) {
+      // La solicitud se hizo pero no se recibió respuesta
+      errorMessage =
+        "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
     } else {
-      // Manejo estándar para otros errores
-      // (Resto del código sin cambios)
+      // Algo sucedió al configurar la solicitud que provocó un error
+      errorMessage = `Error al configurar la solicitud: ${error.message}`;
     }
-
-    return {
-      message,
-      code,
-      status,
-      details
-    };
-  }
-  /**
-   * Maneja errores genéricos no relacionados con Axios
-   */
-  private static handleGenericError(error: unknown): {
-    message: string;
-    code: string;
-    details?: unknown;
-  } {
-    let message = 'Ocurrió un error inesperado';
-    const code = 'UNKNOWN_ERROR';
-    let details;
-
-    if (error instanceof Error) {
-      message = error.message;
-      details = {
-        name: error.name,
-        stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
-      };
-    } else if (typeof error === 'string') {
-      message = error;
-    } else if (error !== null && typeof error === 'object') {
-      message = (error as { message?: string }).message || message;
-      details = error;
-    }
-
-    return {
-      message,
-      code,
-      details
-    };
+  } else if (error instanceof Error) {
+    // Otros tipos de errores (ej. errores de JavaScript)
+    console.error("[API Error Handler] Generic Error:", error);
+    errorMessage = error.message || errorMessage;
+  } else {
+    // Errores desconocidos
+    console.error("[API Error Handler] Unknown Error:", error);
   }
 
-  /**
-   * Obtiene un código de error basado en el status HTTP
-   */
-  private static getCodeFromStatus(status: number): string {
-    switch (status) {
-      case 400:
-        return 'BAD_REQUEST';
-      case 401:
-        return 'UNAUTHORIZED';
-      case 403:
-        return 'FORBIDDEN';
-      case 404:
-        return 'NOT_FOUND';
-      case 422:
-        return 'VALIDATION_ERROR';
-      case 429:
-        return 'TOO_Munknown_REQUESTS';
-      case 500:
-        return 'SERVER_ERROR';
-      default:
-        return `HTTP_ERROR_${status}`;
-    }
-  }
+  // Mostrar el mensaje de error al usuario usando react-hot-toast
+  // Evitar mostrar toasts duplicados si ya hay uno con el mismo mensaje
+  toast.error(errorMessage, { id: errorMessage });
 
-  /**
-   * Muestra un mensaje de error en un toast
-   */
-  static showErrorToast(error: unknown): void {
-    const { message } = this.handleError(error);
-    toast.error(message);
-  }
-}
+  // Devolver el mensaje de error para posible uso adicional
+  return errorMessage;
+};

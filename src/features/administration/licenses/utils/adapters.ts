@@ -4,7 +4,59 @@ import {
   CreateLicenseDto,
   UpdateLicenseDto,
   ModuleCompanyLicense,
-} from "../types/license";
+  RenewLicenseDto, // Asegúrate que este tipo esté definido en model/license.ts si aplica
+} from "../../../../model/license"; // <- Importa desde model
+import {
+  RenewLicenseFormData,
+  LicenseFormData,
+} from "../schemas/licenseSchema"; // Importa tipos de Zod
+
+/**
+ * Formatea una fecha ISO o Date a 'YYYY-MM-DD' para inputs tipo date.
+ * Devuelve una cadena vacía si la entrada es inválida.
+ */
+export const formatDateForInput = (
+  dateString: string | Date | undefined | null
+): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    // Comprobar si la fecha es válida
+    if (isNaN(date.getTime())) return "";
+    // Ajustar por zona horaria para evitar problemas de día anterior/posterior
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().split("T")[0];
+  } catch (e) {
+    console.error("Error formateando fecha para input:", e);
+    return "";
+  }
+};
+
+/**
+ * Formatea una fecha ISO o 'YYYY-MM-DD' a un formato legible (ej: DD/MM/YYYY).
+ * Devuelve una cadena vacía si la entrada es inválida.
+ */
+export const formatDateForDisplay = (
+  dateString: string | Date | undefined | null
+): string => {
+  if (!dateString) return "";
+  try {
+    // Intenta parsear, maneja ambos ISO y YYYY-MM-DD
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    // Para mostrar, no necesitamos el ajuste de zona horaria necesariamente, depende del requisito
+    // const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000); // Ajuste para mostrar día correcto
+    return date.toLocaleDateString("es-ES", {
+      // es-ES usa DD/MM/YYYY
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch (e) {
+    console.error("Error formateando fecha para display:", e);
+    return "";
+  }
+};
 
 /**
  * Función auxiliar para extraer los nombres de los módulos principales
@@ -15,10 +67,7 @@ export const extractMainModules = (
 ): string[] => {
   if (!modulesLicence || modulesLicence.length === 0) return [];
 
-  // Mapeamos los nombres de los módulos
   const moduleNames = modulesLicence.map((ml) => ml.module.name);
-
-  // Lista de identificadores de módulos principales que queremos extraer
   const mainModules = [
     "panel_monitoreo",
     "empleados",
@@ -27,82 +76,57 @@ export const extractMainModules = (
     "comedor",
     "reportes",
   ];
+  const foundMainModules = new Set<string>(); // Usar Set para evitar duplicados
 
-  // Filtramos para obtener solo los módulos principales
-  const foundMainModules = mainModules.filter((main) =>
-    moduleNames.includes(main)
-  );
+  mainModules.forEach((main) => {
+    if (moduleNames.includes(main)) {
+      foundMainModules.add(main);
+    }
+  });
 
-  // También extraemos los módulos hijos que indican la presencia de un módulo principal
+  // Mapeo de hijos a padres para inferir módulos principales
   const moduleMapping: Record<string, string> = {
+    gestion_empleados: "empleados", // Asumiendo que gestión_empleados implica empleados
     planificador_horarios: "control_tiempo",
     gestion_incidencias: "control_tiempo",
     calendario: "control_tiempo",
     visitantes: "control_acceso",
     permisos_acceso: "control_acceso",
+    reportes_mas_usados: "reportes", // Asumiendo que reportes_mas_usados implica reportes
   };
 
-  // Verificamos módulos hijos para incluir sus padres
   moduleNames.forEach((name) => {
-    if (
-      moduleMapping[name] &&
-      !foundMainModules.includes(moduleMapping[name])
-    ) {
-      foundMainModules.push(moduleMapping[name]);
+    const parentModule = moduleMapping[name];
+    if (parentModule) {
+      foundMainModules.add(parentModule);
     }
   });
 
-  return foundMainModules;
+  // Devolver como array ordenado si es necesario, o simplemente el Set convertido a array
+  return Array.from(foundMainModules);
 };
 
 /**
- * Convierte una licencia de la API a nuestro formato interno
+ * Convierte una licencia de la API a nuestro formato interno de UI (License)
  */
-const fixTimeZoneIssue = (dateString: string | number | Date) => {
-  if (!dateString) return "";
-
-  // Crear una fecha desde el string y asegurarse de que se interprete en la zona horaria local
-  const date = new Date(dateString);
-
-  // Crear una nueva fecha con los componentes explícitos para evitar
-  // la conversión automática de zona horaria que causa el problema de un día anterior
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
-
-  return new Date(year, month, day).toISOString();
-};
-
-export const formatDateDisplay = (dateString: string | number | Date) => {
-  if (!dateString) return "";
-
-  // Crear una fecha desde el string ISO
-  const date = new Date(dateString);
-
-  // Formatear la fecha para mostrar en la interfaz
-  return date.toLocaleDateString("es-ES"); // Adaptar al formato deseado
-};
-
 export const apiToUiLicense = (apiLicense: ApiLicense): License => {
-  // Extraer los IDs de módulos de modules_licence si existe
   const moduleIds = apiLicense.modules_licence
     ? apiLicense.modules_licence.map((ml) => ml.module.module_id)
     : apiLicense.modules || [];
 
-  // Extraer los nombres de los módulos principales
   const mainModuleNames = extractMainModules(apiLicense.modules_licence);
 
   return {
     id: apiLicense.license_id,
     companyName: apiLicense.company_name,
     rnc: apiLicense.rnc,
-    usedCompanies: apiLicense.used_companies || 0,
+    usedCompanies: apiLicense.used_companies ?? 0, // Usa ?? para default 0 si es null/undefined
     allowedCompanies: apiLicense.allowed_companies,
-    activeEmployees: apiLicense.active_employees || 0,
+    activeEmployees: apiLicense.active_employees ?? 0,
     allowedEmployees: apiLicense.allowed_employees,
-    expirationDate: fixTimeZoneIssue(apiLicense.expiration_date),
+    expirationDate: formatDateForInput(apiLicense.expiration_date), // <- Formato YYYY-MM-DD
     modules: moduleIds,
-    moduleNames: mainModuleNames, // Añadimos los nombres de los módulos principales
+    moduleNames: mainModuleNames,
     status: apiLicense.status ? "active" : "inactive",
     creationDate: apiLicense.creation_date || apiLicense.created_at,
     lastUpdate: apiLicense.last_update || apiLicense.updated_at,
@@ -116,59 +140,59 @@ export const apiToUiLicense = (apiLicense: ApiLicense): License => {
 };
 
 /**
- * Convierte una licencia de nuestro formato interno a formato de la API para crear
+ * Convierte los datos del formulario (validados por Zod) a DTO para crear licencia
  */
-export const uiToApiCreateLicense = (
-  uiLicense: Partial<License>
+export const licenseFormDataToApiCreateDto = (
+  formData: LicenseFormData
 ): CreateLicenseDto => {
   return {
-    company_name: uiLicense.companyName || "",
-    rnc: uiLicense.rnc || "",
-    expiration_date: uiLicense.expirationDate || "",
-    allowed_companies: uiLicense.allowedCompanies || 1,
-    allowed_employees: uiLicense.allowedEmployees || 100,
-    contact_name: uiLicense.contactInfo?.name || "",
-    email: uiLicense.contactInfo?.email || "",
-    phone: uiLicense.contactInfo?.phone || "",
-    status: uiLicense.status === "active",
-    modules: uiLicense.modules || [],
-    notes: uiLicense.notes,
+    company_name: formData.companyName,
+    rnc: formData.rnc,
+    expiration_date: formData.expirationDate, // Ya debería estar en YYYY-MM-DD
+    allowed_companies: formData.allowedCompanies,
+    allowed_employees: formData.allowedEmployees,
+    contact_name: formData.contactInfo.name,
+    email: formData.contactInfo.email,
+    phone: formData.contactInfo.phone,
+    status: formData.status === "active",
+    modules: formData.modules,
+    notes: formData.notes,
   };
 };
 
 /**
- * Convierte una licencia de nuestro formato interno a formato de la API para actualizar
+ * Convierte los datos del formulario (validados por Zod) a DTO para actualizar licencia
+ * Nota: Este DTO debería ser Partial, pero para el envío usualmente se manda todo.
+ * Si la API realmente espera solo los campos cambiados, se necesita lógica adicional.
  */
-export const uiToApiUpdateLicense = (
-  uiLicense: Partial<License>
+export const licenseFormDataToApiUpdateDto = (
+  formData: LicenseFormData
 ): UpdateLicenseDto => {
-  // Creamos un objeto base
-  const apiLicense: UpdateLicenseDto = {};
+  // Por simplicidad, enviamos todos los campos validados, la API debería manejarlo.
+  // Si la API requiere solo campos modificados, necesitarías comparar con el estado original.
+  return {
+    company_name: formData.companyName,
+    rnc: formData.rnc,
+    expiration_date: formData.expirationDate,
+    allowed_companies: formData.allowedCompanies,
+    allowed_employees: formData.allowedEmployees,
+    contact_name: formData.contactInfo.name,
+    email: formData.contactInfo.email,
+    phone: formData.contactInfo.phone,
+    status: formData.status === "active",
+    modules: formData.modules,
+    notes: formData.notes,
+  };
+};
 
-  // Solo incluimos los campos que existen en la licencia de UI
-  if (uiLicense.companyName !== undefined)
-    apiLicense.company_name = uiLicense.companyName;
-  if (uiLicense.rnc !== undefined) apiLicense.rnc = uiLicense.rnc;
-  if (uiLicense.expirationDate !== undefined)
-    apiLicense.expiration_date = uiLicense.expirationDate;
-  if (uiLicense.allowedCompanies !== undefined)
-    apiLicense.allowed_companies = uiLicense.allowedCompanies;
-  if (uiLicense.allowedEmployees !== undefined)
-    apiLicense.allowed_employees = uiLicense.allowedEmployees;
-  if (uiLicense.status !== undefined)
-    apiLicense.status = uiLicense.status === "active";
-  if (uiLicense.modules !== undefined) apiLicense.modules = uiLicense.modules;
-  if (uiLicense.notes !== undefined) apiLicense.notes = uiLicense.notes;
-
-  // Añadimos la información de contacto si existe
-  if (uiLicense.contactInfo) {
-    if (uiLicense.contactInfo.name !== undefined)
-      apiLicense.contact_name = uiLicense.contactInfo.name;
-    if (uiLicense.contactInfo.email !== undefined)
-      apiLicense.email = uiLicense.contactInfo.email;
-    if (uiLicense.contactInfo.phone !== undefined)
-      apiLicense.phone = uiLicense.contactInfo.phone;
-  }
-
-  return apiLicense;
+/**
+ * Convierte datos del formulario de renovación a DTO para la API
+ */
+export const renewalFormDataToApiDto = (
+  formData: RenewLicenseFormData
+): RenewLicenseDto => {
+  return {
+    expiration_date: formData.expirationDate, // Ya debería estar en YYYY-MM-DD
+    status: formData.status === "active",
+  };
 };

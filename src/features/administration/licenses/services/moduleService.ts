@@ -1,22 +1,9 @@
-import { apiClient } from "../../../../services/api";
-import { tokenStorage } from "../../../auth/utils";
-
-// Interfaces
-export interface Module {
-  module_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ModuleResponse {
-  statusCode: number;
-  message: string;
-  data: Module[];
-}
+import { makeRequest } from "../../../../services/api"; // Importa makeRequest y ApiResponse
+import { MODULE_ENDPOINTS } from "../../../../services/api/endpoints";
+import { ModuleFromApi } from "../../../../model/module"; // Importa tipo del modelo
 
 // Cache para almacenar módulos y evitar llamadas repetidas
-let modulesCache: Module[] | null = null;
+let modulesCache: ModuleFromApi[] | null = null;
 
 /**
  * Servicio para gestionar operaciones relacionadas con módulos
@@ -26,35 +13,33 @@ export const moduleService = {
    * Obtiene todos los módulos disponibles
    * Utiliza caché para evitar llamadas repetidas a la API
    */
-  async getAllModules(forceRefresh = false): Promise<Module[]> {
+  async getAllModules(forceRefresh = false): Promise<ModuleFromApi[]> {
     // Si hay caché y no se fuerza actualización, devolver caché
     if (modulesCache && !forceRefresh) {
+      console.log("[moduleService] Devolviendo módulos desde caché.");
       return modulesCache;
     }
 
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("[moduleService] No hay token de autenticación disponible");
-      return [];
-    }
+    console.log("[moduleService] Solicitando módulos a la API...");
+    const response = await makeRequest<ModuleFromApi[]>(
+      "get",
+      MODULE_ENDPOINTS.BASE
+    );
 
-    try {
-      console.log("[moduleService] GET request to: /modules");
-      const response = await apiClient.get<ModuleResponse>("/modules", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      console.log("[moduleService] Response:", response);
-
-      if (response.statusCode === 200 && Array.isArray(response.data)) {
-        // Guardar en caché
-        modulesCache = response.data;
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error("[moduleService] Error al cargar módulos:", error);
+    if (
+      response &&
+      response.statusCode === 200 &&
+      Array.isArray(response.data)
+    ) {
+      console.log("[moduleService] Módulos recibidos y guardados en caché.");
+      modulesCache = response.data; // Guardar en caché
+      return response.data;
+    } else {
+      console.error(
+        "[moduleService] Error al cargar módulos:",
+        response?.message || "Respuesta inválida"
+      );
+      // No lanzar error aquí, devolver array vacío como fallback
       return [];
     }
   },
@@ -64,6 +49,7 @@ export const moduleService = {
    */
   clearCache() {
     modulesCache = null;
+    console.log("[moduleService] Caché de módulos limpiada.");
   },
 };
 

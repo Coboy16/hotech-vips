@@ -10,7 +10,7 @@ import {
   ChevronUp,
   ArrowRight,
 } from "lucide-react";
-import type { License } from "../types/license";
+import { License } from "../../../../model/license";
 
 interface LicenseHistoryModalProps {
   license: License;

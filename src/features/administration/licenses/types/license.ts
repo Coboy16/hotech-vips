@@ -1,99 +1,69 @@
-export interface LicenseResponse {
-  statusCode: number;
-  data: ApiLicense | ApiLicense[];
-  message: string;
-  error: string;
-}
+// Ahora contendrá tipos específicos de este feature, como Props de componentes locales
 
-export interface ModuleCompanyLicense {
-  module_company_license_id: string;
-  module: {
-    name: string;
-    module_id: string;
+import { ColumnDefinition } from "../../../../components/common";
+import { License } from "../../../../model/license";
+
+// Props para el componente presentacional LicenseList
+export interface LicenseListProps {
+  licenses: License[];
+  columns: ColumnDefinition<License>[]; // Asegúrate que ColumnDefinition esté importado o definido
+  isLoading: boolean;
+  emptyMessage: string;
+  pagination: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange: (itemsPerPage: number) => void;
+    itemsPerPageOptions?: number[];
   };
-}
-
-export interface ApiLicense {
-  license_id: string;
-  company_name: string;
-  rnc: string;
-  expiration_date: string;
-  allowed_companies: number;
-  allowed_employees: number;
-  contact_name: string;
-  email: string;
-  phone: string;
-  status: boolean;
-  used_companies?: number;
-  active_employees?: number;
-  modules?: string[];
-  modules_licence?: ModuleCompanyLicense[];
-  created_at?: string;
-  creation_date?: string;
-  updated_at?: string;
-  last_update?: string;
-  notes?: string;
-}
-
-export interface CreateLicenseDto {
-  company_name: string;
-  rnc: string;
-  expiration_date: string;
-  allowed_companies: number;
-  allowed_employees: number;
-  contact_name: string;
-  email: string;
-  phone: string;
-  status: boolean;
-  modules?: string[];
-  notes?: string;
-}
-
-export interface UpdateLicenseDto {
-  company_name?: string;
-  rnc?: string;
-  expiration_date?: string;
-  allowed_companies?: number;
-  allowed_employees?: number;
-  contact_name?: string;
-  email?: string;
-  phone?: string;
-  status?: boolean;
-  modules?: string[];
-  notes?: string;
-}
-
-export interface License {
-  id: string;
-  companyName: string;
-  rnc: string;
-  usedCompanies: number;
-  allowedCompanies: number;
-  activeEmployees: number;
-  allowedEmployees: number;
-  expirationDate: string;
-  modules: string[];
-  status: "active" | "inactive";
-  creationDate?: string;
-  lastUpdate?: string;
-  notes?: string;
-  contactInfo: {
-    name: string;
-    email: string;
-    phone: string;
+  sorting: {
+    sortKey: string;
+    sortDirection: "asc" | "desc";
+    onSort: (key: string, direction: "asc" | "desc") => void;
   };
-  moduleNames?: string[];
+  onRowClick: (license: License) => void;
 }
 
-export interface Module {
-  module_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
+// Props para el componente presentacional LicenseGridDisplay
+export interface LicenseGridDisplayProps {
+  licenses: License[];
+  isLoading: boolean;
+  emptyMessage: string;
+  pagination: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange: (itemsPerPage: number) => void;
+    itemsPerPageOptions?: number[];
+  };
+  contextMenu: {
+    contextMenuLicense: License | null;
+    renderContextMenu?: (license: License) => React.ReactNode;
+  };
+  onCardClick: (license: License) => void;
+  onMenuClick: (license: License, e: React.MouseEvent) => void;
+  // Pasa las funciones específicas del menú si son necesarias aquí
+  onRenew: (license: License) => void;
+  onHistory: (license: License) => void;
+  onDelete: (license: License) => void;
 }
 
-export interface ModuleGroup {
-  id: string;
-  label: string;
-  modules: Module[];
+// Props para los filtros (si decides crear un componente presentacional para ellos)
+export interface FiltersProps {
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  searchPlaceholder?: string;
+  filterValues: { [key: string]: string };
+  onFilterChange: (filterName: string, value: string) => void;
+  filterOptions: {
+    [key: string]: {
+      label: string;
+      options: { value: string; label: string }[];
+    };
+  };
+  viewMode: "list" | "grid";
+  onViewModeChange: (mode: "list" | "grid") => void;
+  onResetFilters: () => void;
 }

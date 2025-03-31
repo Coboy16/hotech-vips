@@ -1,13 +1,11 @@
-import { apiClient } from "../../../../services/api";
+import { makeRequest } from "../../../../services/api";
 import { LICENSE_ENDPOINTS } from "../../../../services/api/endpoints";
-import { tokenStorage } from "../../../auth/utils";
-
 import {
-  LicenseResponse,
+  ApiLicense,
   CreateLicenseDto,
   UpdateLicenseDto,
-  ApiLicense,
-} from "../types/license";
+  RenewLicenseDto,
+} from "../../../../model/license"; // Importa tipos del modelo
 
 /**
  * Servicio para gestionar operaciones relacionadas con licencias de empresas
@@ -17,36 +15,27 @@ export const licenseService = {
    * Obtiene todas las licencias
    */
   async getAll(): Promise<ApiLicense[]> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error(
-        "[licenseService] No hay token de autenticación disponible"
-      );
-      return [];
-    }
-    try {
-      console.log("[licenseService] GET request to:", LICENSE_ENDPOINTS.BASE);
-      const response = await apiClient.get<LicenseResponse>(
-        LICENSE_ENDPOINTS.BASE,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("[licenseService] Response:", response);
+    console.log("[licenseService] Solicitando todas las licencias...");
+    const response = await makeRequest<ApiLicense[]>(
+      "get",
+      LICENSE_ENDPOINTS.BASE
+    );
 
-      // Procesar los datos para adaptarlos a nuestra interfaz
-      if (response.statusCode === 200 && Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error(
-        "[licenseService] Error al cargar todas las licencias:",
-        error
+    if (
+      response &&
+      response.statusCode === 200 &&
+      Array.isArray(response.data)
+    ) {
+      console.log(
+        `[licenseService] ${response.data.length} licencias obtenidas.`
       );
-      return [];
+      return response.data;
+    } else {
+      console.error(
+        "[licenseService] Error al obtener todas las licencias:",
+        response?.message || "Respuesta inválida"
+      );
+      return []; // Devuelve array vacío en caso de error
     }
   },
 
@@ -54,34 +43,26 @@ export const licenseService = {
    * Obtiene una licencia por su ID
    */
   async getById(id: string): Promise<ApiLicense | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error(
-        "[licenseService] No hay token de autenticación disponible"
-      );
-      return null;
-    }
-    try {
-      console.log(
-        "[licenseService] GET request to:",
-        LICENSE_ENDPOINTS.DETAIL(id)
-      );
-      const response = await apiClient.get<LicenseResponse>(
-        LICENSE_ENDPOINTS.DETAIL(id),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("[licenseService] Response:", response);
+    console.log(`[licenseService] Solicitando licencia con ID: ${id}`);
+    const response = await makeRequest<ApiLicense>(
+      "get",
+      LICENSE_ENDPOINTS.DETAIL(id)
+    );
 
-      if (response.statusCode === 200 && !Array.isArray(response.data)) {
-        return response.data as ApiLicense;
-      }
-      return null;
-    } catch (error) {
-      console.error("[licenseService] Error al obtener licencia:", error);
+    // Asumiendo que si viene data, es un objeto ApiLicense, no un array
+    if (
+      response &&
+      response.statusCode === 200 &&
+      response.data &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[licenseService] Licencia ${id} obtenida.`);
+      return response.data;
+    } else {
+      console.error(
+        `[licenseService] Error al obtener licencia ${id}:`,
+        response?.message || "Respuesta inválida o no encontrada"
+      );
       return null;
     }
   },
@@ -90,37 +71,28 @@ export const licenseService = {
    * Crea una nueva licencia
    */
   async create(licenseData: CreateLicenseDto): Promise<ApiLicense | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error(
-        "[licenseService] No hay token de autenticación disponible"
-      );
-      return null;
-    }
-    try {
-      console.log(
-        "[licenseService] POST request to:",
-        LICENSE_ENDPOINTS.BASE,
-        "with data:",
-        licenseData
-      );
-      const response = await apiClient.post<LicenseResponse>(
-        LICENSE_ENDPOINTS.BASE,
-        licenseData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("[licenseService] Response:", response);
+    console.log("[licenseService] Creando nueva licencia...");
+    const response = await makeRequest<ApiLicense>(
+      "post",
+      LICENSE_ENDPOINTS.BASE,
+      licenseData
+    );
 
-      if (response.statusCode === 201 && !Array.isArray(response.data)) {
-        return response.data as ApiLicense;
-      }
-      return null;
-    } catch (error) {
-      console.error("[licenseService] Error al crear licencia:", error);
+    if (
+      response &&
+      response.statusCode === 201 &&
+      response.data &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(
+        `[licenseService] Licencia creada con ID: ${response.data.license_id}`
+      );
+      return response.data;
+    } else {
+      console.error(
+        "[licenseService] Error al crear licencia:",
+        response?.message || "Respuesta inválida"
+      );
       return null;
     }
   },
@@ -132,37 +104,59 @@ export const licenseService = {
     id: string,
     licenseData: UpdateLicenseDto
   ): Promise<ApiLicense | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
+    console.log(`[licenseService] Actualizando licencia con ID: ${id}`);
+    const response = await makeRequest<ApiLicense>(
+      "put", // o 'patch' dependiendo de tu API
+      LICENSE_ENDPOINTS.UPDATE(id),
+      licenseData
+    );
+
+    if (
+      response &&
+      response.statusCode === 200 &&
+      response.data &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[licenseService] Licencia ${id} actualizada.`);
+      return response.data;
+    } else {
       console.error(
-        "[licenseService] No hay token de autenticación disponible"
+        `[licenseService] Error al actualizar licencia ${id}:`,
+        response?.message || "Respuesta inválida"
       );
       return null;
     }
-    try {
-      console.log(
-        "[licenseService] PUT request to:",
-        LICENSE_ENDPOINTS.UPDATE(id),
-        "with data:",
-        licenseData
-      );
-      const response = await apiClient.put<LicenseResponse>(
-        LICENSE_ENDPOINTS.UPDATE(id),
-        licenseData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("[licenseService] Response:", response);
+  },
 
-      if (response.statusCode === 200 && !Array.isArray(response.data)) {
-        return response.data as ApiLicense;
-      }
-      return null;
-    } catch (error) {
-      console.error("[licenseService] Error al actualizar licencia:", error);
+  /**
+   * Renueva una licencia existente (simplificado, usa update pero podría tener endpoint propio)
+   * Asume que la renovación solo cambia expirationDate y status.
+   */
+  async renew(
+    id: string,
+    renewalData: RenewLicenseDto
+  ): Promise<ApiLicense | null> {
+    console.log(`[licenseService] Renovando licencia con ID: ${id}`);
+    // Reutilizamos el endpoint de update, pero podrías tener uno específico /licenses/{id}/renew
+    const response = await makeRequest<ApiLicense>(
+      "put", // o 'patch'
+      LICENSE_ENDPOINTS.UPDATE(id), // Endpoint de actualización general
+      renewalData // Enviamos solo los datos de renovación
+    );
+
+    if (
+      response &&
+      response.statusCode === 200 &&
+      response.data &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[licenseService] Licencia ${id} renovada.`);
+      return response.data;
+    } else {
+      console.error(
+        `[licenseService] Error al renovar licencia ${id}:`,
+        response?.message || "Respuesta inválida"
+      );
       return null;
     }
   },
@@ -171,68 +165,21 @@ export const licenseService = {
    * Elimina una licencia
    */
   async delete(id: string): Promise<boolean> {
-    const token = tokenStorage.getToken();
-    if (!token) {
+    console.log(`[licenseService] Eliminando licencia con ID: ${id}`);
+    const response = await makeRequest<unknown>( // No esperamos data específica al eliminar
+      "delete",
+      LICENSE_ENDPOINTS.DELETE(id)
+    );
+
+    if (response && response.statusCode === 200) {
+      console.log(`[licenseService] Licencia ${id} eliminada.`);
+      return true;
+    } else {
       console.error(
-        "[licenseService] No hay token de autenticación disponible"
+        `[licenseService] Error al eliminar licencia ${id}:`,
+        response?.message || "Respuesta inválida"
       );
       return false;
-    }
-    try {
-      console.log(
-        "[licenseService] DELETE request to:",
-        LICENSE_ENDPOINTS.DELETE(id)
-      );
-      const response = await apiClient.delete<LicenseResponse>(
-        LICENSE_ENDPOINTS.DELETE(id),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("[licenseService] Response:", response);
-      return response.statusCode === 200;
-    } catch (error) {
-      console.error("[licenseService] Error al eliminar licencia:", error);
-      return false;
-    }
-  },
-
-  /**
-   * Obtiene todos los módulos disponibles
-   */
-  async getAllModules() {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error(
-        "[licenseService] No hay token de autenticación disponible"
-      );
-      return [];
-    }
-    try {
-      const response = await apiClient.get<{
-        statusCode: number;
-        message: string;
-        data: {
-          module_id: string;
-          name: string;
-          created_at: string;
-          updated_at: string;
-        }[];
-      }>("/modules", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.statusCode === 200 && Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error("[licenseService] Error al cargar los módulos:", error);
-      return [];
     }
   },
 };

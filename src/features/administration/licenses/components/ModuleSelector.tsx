@@ -13,7 +13,8 @@ import {
   AlertCircle,
   AlignCenter,
 } from "lucide-react";
-import { moduleService, Module } from "../services/moduleService";
+import { moduleService } from "../services/moduleService";
+import { Module } from "../../../../model/module";
 
 // Interfaces
 interface ModuleGroup {

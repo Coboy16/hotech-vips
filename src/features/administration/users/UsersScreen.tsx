@@ -10,18 +10,18 @@ import {
   CheckCircle2,
   MoreVertical,
 } from "lucide-react";
-import { useUsers } from "../hooks/useUsers";
-import { User } from "../types/user";
+import { useUsers } from "./hooks/useUsers";
+import { User } from "./types/user";
 
-import UsersSummary from "./UsersSummary";
-import UserGrid from "./UserGrid";
-import UserContextMenu from "./UserContextMenu";
-import { UserForm } from "./UserForm";
-import Filters from "../../../../components/common/table/Filters";
+import UsersSummary from "./components/UsersSummary";
+import UserGrid from "./components/UserGrid";
+import UserContextMenu from "./components/UserContextMenu";
+import { UserForm } from "./components/UserForm";
+import Filters from "../../../components/common/table/Filters";
 import SortableTable, {
   ColumnDefinition,
-} from "../../../../components/common/table/SortableTable";
-import Pagination from "../../../../components/common/table/Pagination";
+} from "../../../components/common/table/SortableTable";
+import Pagination from "../../../components/common/table/Pagination";
 
 export function UsersScreen() {
   // Estados básicos
