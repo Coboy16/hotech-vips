@@ -1,5 +1,3 @@
-// src/features/users/services/userService.ts
-
 import { apiClient } from "../../../../services/api";
 import { USER_ENDPOINTS } from "../../../../services/api/endpoints";
 import { tokenStorage } from "../../../auth/utils";

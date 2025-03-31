@@ -1,24 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
-import { Country } from '../types';
-import { countryService } from '../services/countryService';
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "react-hot-toast";
+import { countryService } from "../services/countryService"; // Asegura ruta correcta
+import { Country } from "../../../../model/country"; // Importa desde model
 
+/**
+ * Hook para obtener y gestionar la lista de países.
+ */
 export const useCountries = () => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar todos los países
-  const loadCountries = useCallback(async () => {
+  const loadCountries = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await countryService.getAll();
+      const data = await countryService.getAllCountries(forceRefresh);
       setCountries(data);
     } catch (err) {
-      console.error('Error al cargar todos los países :', err);
-      setError('Error al cargar los países');
-      toast.error('No se pudieron cargar los países');
+      const message = "Error al cargar los países";
+      setError(message);
+      console.error(message, err);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -29,10 +32,5 @@ export const useCountries = () => {
     loadCountries();
   }, [loadCountries]);
 
-  return {
-    countries,
-    loading,
-    error,
-    loadCountries
-  };
+  return { countries, loading, error, loadCountries };
 };

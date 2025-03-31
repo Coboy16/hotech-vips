@@ -2,11 +2,10 @@ import { toast } from "react-hot-toast";
 import {
   LoginCredentials,
   AuthResponse,
-  ApiResponse,
-  LoginResponse,
+  LoginSuccessData,
 } from "../types/auth";
-import { tokenStorage } from "../utils/tokenStorage";
-import { apiClient } from "../../../services/api";
+import { tokenStorage, StorageType } from "../utils/tokenStorage";
+import { makeRequest } from "../../../services/api";
 import { AUTH_ENDPOINTS } from "../../../services/api/endpoints";
 
 /**
@@ -25,7 +24,8 @@ export const authService = {
     try {
       // Solo enviamos email y password a la API, no la opción rememberMe
       const { email, password } = credentials;
-      const response = await apiClient.post<LoginResponse>(
+      const response = await makeRequest<LoginSuccessData>(
+        "post",
         AUTH_ENDPOINTS.LOGIN,
         { email, password }
       );
@@ -33,7 +33,7 @@ export const authService = {
       console.log("[authService] Respuesta completa del servidor:", response);
 
       // Verificar si la respuesta es exitosa según el statusCode
-      if (response.statusCode === 200 && response.data) {
+      if (response && response.statusCode === 200 && response.data) {
         console.log("[authService] Login exitoso, procesando respuesta");
         const userData = response.data.user;
         const token = response.data.token;
@@ -54,17 +54,30 @@ export const authService = {
             empleados: true,
             gestion_empleados: true,
             control_tiempo: true,
-            planificador_horarios: true, //
+            planificador_horarios: true,
             gestion_incidencias: true,
             calendario: true,
             control_acceso: true,
             visitantes: true,
-            permisos_acceso: true, //
+            permisos_acceso: true,
             comedor: true,
             reportes: true,
             reportes_mas_usados: true,
           };
         }
+
+        // Guardar el token según la opción "recordarme"
+        if (credentials.rememberMe) {
+          tokenStorage.setToken(token, StorageType.LOCAL);
+        } else {
+          tokenStorage.setToken(token, StorageType.SESSION);
+        }
+
+        // También guardamos los datos del usuario
+        tokenStorage.setUser(
+          userData,
+          credentials.rememberMe ? StorageType.LOCAL : StorageType.SESSION
+        );
 
         return {
           success: true,
@@ -76,11 +89,11 @@ export const authService = {
       // Si llegamos aquí, hubo un error en la respuesta
       console.log(
         "[authService] Error en respuesta:",
-        response.error || response.message
+        response?.error || response?.message
       );
       return {
         success: false,
-        error: response.error || response.message || "Error de autenticación",
+        error: response?.error || response?.message || "Error de autenticación",
       };
     } catch (error) {
       console.error("[authService] Error en login:", error);
@@ -89,9 +102,10 @@ export const authService = {
       if (
         typeof error === "object" &&
         error !== null &&
-        "statusCode" in error
+        "statusCode" in error &&
+        "message" in error
       ) {
-        const apiError = error as ApiResponse<unknown>;
+        const apiError = error as { statusCode: number; message: string };
         return {
           success: false,
           error: apiError.message || "Error al intentar iniciar sesión",
@@ -115,7 +129,7 @@ export const authService = {
       console.log("[authService] Token presente para logout:", !!token);
 
       if (token) {
-        await apiClient.post(AUTH_ENDPOINTS.LOGOUT);
+        await makeRequest("post", AUTH_ENDPOINTS.LOGOUT);
         console.log("[authService] Petición de logout al servidor completada");
       }
 

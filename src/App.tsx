@@ -12,12 +12,9 @@ import { PrivateRoute } from "./routes/PrivateRoute";
 import { PublicRoute } from "./routes/PublicRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { generateRoutes } from "./routes/routesConfig";
-import React from "react";
 
 // Lazy loading para optimización
-const LoginScreen = lazy(
-  () => import("./features/auth/components/LoginScreen")
-);
+const LoginScreen = lazy(() => import("./features/auth/LoginScreen"));
 const NotFoundPage = lazy(() => import("./pages/NotFound/NotFoundPage"));
 
 // Página con estado de carga

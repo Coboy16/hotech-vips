@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { FileEdit, Trash2, AlertTriangle, Clock } from "lucide-react";
-import { License } from "../types/license";
+import { License } from "../../../../model/license";
 
 interface LicenseContextMenuProps {
   license: License;

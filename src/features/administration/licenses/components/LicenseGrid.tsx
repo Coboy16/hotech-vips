@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import LicenseCard from "./LicenseCard";
-import { License } from "../types/license";
-import Pagination from "../../../../components/common/table/Pagination";
+import { License } from "../../../../model/license"; // Importa desde model
+import Pagination from "../../../../components/common/table/Pagination"; // Asegura ruta correcta
 
 interface LicenseGridProps {
   licenses: License[];
@@ -10,6 +10,10 @@ interface LicenseGridProps {
   contextMenuLicense: License | null;
   renderContextMenu?: (license: License) => React.ReactNode;
   emptyMessage?: string;
+  // Añadir props para las acciones del menú
+  onRenew: (license: License) => void;
+  onHistory: (license: License) => void;
+  onDelete: (license: License) => void;
 }
 
 const LicenseGrid: React.FC<LicenseGridProps> = ({
@@ -18,9 +22,12 @@ const LicenseGrid: React.FC<LicenseGridProps> = ({
   onMenuClick,
   contextMenuLicense,
   renderContextMenu,
-  emptyMessage = "No se encontraron licencias con los filtros seleccionados.",
+  emptyMessage = "No se encontraron licencias.",
+  onRenew,
+  onHistory,
+  onDelete,
 }) => {
-  // Estado para la paginación
+  // Estado para la paginación INTERNA de este componente
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(12); // Opciones: 6, 12, 24, 36
 
@@ -32,8 +39,8 @@ const LicenseGrid: React.FC<LicenseGridProps> = ({
   // Manejar cambio de página
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll al inicio de la cuadrícula
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Opcional: Scroll al inicio de la cuadrícula si es necesario
+    // window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Manejar cambio de elementos por página
@@ -54,11 +61,11 @@ const LicenseGrid: React.FC<LicenseGridProps> = ({
                   license={license}
                   onCardClick={onCardClick}
                   onMenuClick={onMenuClick}
-                  menuOpen={
-                    contextMenuLicense
-                      ? contextMenuLicense.id === license.id
-                      : undefined
-                  }
+                  // Pasa las funciones de acción a LicenseCard
+                  onRenew={onRenew}
+                  onHistory={onHistory}
+                  onDelete={onDelete}
+                  menuOpen={contextMenuLicense?.id === license.id}
                 />
                 {/* Renderizar menú contextual si existe y está abierto para esta licencia */}
                 {contextMenuLicense &&

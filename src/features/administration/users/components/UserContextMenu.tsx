@@ -1,5 +1,3 @@
-// src/features/users/components/UserContextMenu.tsx
-
 import React, { useEffect, useRef } from "react";
 import {
   UserCog,

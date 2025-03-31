@@ -1,8 +1,4 @@
 /**
- * Tipos y interfaces para el cliente API
- */
-
-/**
  * Configuración por entorno para el cliente API
  */
 export interface ApiEnvironmentConfig {
@@ -24,23 +20,23 @@ export interface ApiConfigMap {
 /**
  * Respuesta genérica de la API
  */
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-  meta?: {
-    pagination?: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  };
-}
+// export interface ApiResponse<T = unknown> {
+//   success: boolean;
+//   data?: T;
+//   error?: {
+//     code: string;
+//     message: string;
+//     details?: unknown;
+//   };
+//   meta?: {
+//     pagination?: {
+//       page: number;
+//       limit: number;
+//       total: number;
+//       totalPages: number;
+//     };
+//   };
+// }
 
 /**
  * Opciones para las peticiones a la API
@@ -56,21 +52,55 @@ export interface ApiRequestOptions {
 /**
  * Métodos HTTP soportados
  */
-export type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch';
+export type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
 
 /**
  * Interfaz del cliente API
  */
 export interface ApiClientInterface {
-  request<T = unknown>(method: HttpMethod, endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T>;
+  request<T = unknown>(
+    method: HttpMethod,
+    endpoint: string,
+    data?: unknown,
+    options?: ApiRequestOptions
+  ): Promise<T>;
   get<T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T>;
-  post<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T>;
-  put<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T>;
-  patch<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T>;
-  delete<T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T>;
+  post<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  put<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  patch<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  delete<T = unknown>(
+    endpoint: string,
+    options?: ApiRequestOptions
+  ): Promise<T>;
   setBaseURL(url: string): void;
   setDefaultHeader(key: string, value: string): void;
   removeDefaultHeader(key: string): void;
   getBaseURL(): string;
   createAbortController(): AbortController;
+}
+
+export interface ApiResponse<T> {
+  statusCode: number;
+  message: string;
+  data?: T; // La data puede ser un objeto, un array o undefined/null en algunos casos
+  error?: string; // Campo de error opcional
+}
+
+export interface ModuleFromApi {
+  module_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
 }

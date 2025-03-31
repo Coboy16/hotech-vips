@@ -13,9 +13,12 @@ import {
   AlertTriangle,
   Trash2,
   User,
+  CheckCircle,
+  XCircle,
+  Info,
 } from "lucide-react";
-import { License } from "../types/license";
-import { formatDateDisplay } from "../utils/adapters";
+import { License } from "../../../../model/license"; // Importa desde model
+import { formatDateForDisplay } from "../utils/adapters"; // Importa formateador
 
 interface LicenseCardProps {
   license: License;
@@ -32,87 +35,106 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
   onCardClick,
   onMenuClick,
   onRenew,
-  onHistory,
+  // onHistory,
   onDelete,
 }) => {
   // Función para obtener el estado de expiración
-  const getExpirationStatus = (date: string) => {
-    const expirationDate = new Date(date);
-    const today = new Date();
-    const diffTime = expirationDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const getExpirationStatus = () => {
+    if (!license.expirationDate) return { status: "unknown", days: null };
+    try {
+      const expiration = new Date(license.expirationDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      expiration.setHours(0, 0, 0, 0); // Comparar solo fechas
+      const diffTime = expiration.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 30) return "danger";
-    if (diffDays <= 90) return "warning";
-    return "success";
-  };
-
-  // Función para acortar el ID
-  const shortenId = (id: string) => {
-    if (id.length > 12) {
-      return id.substring(id.length - 12);
+      if (diffDays <= 0) return { status: "danger", days: diffDays }; // Vencido o vence hoy
+      if (diffDays <= 30) return { status: "danger", days: diffDays };
+      if (diffDays <= 90) return { status: "warning", days: diffDays };
+      return { status: "success", days: diffDays };
+    } catch {
+      return { status: "unknown", days: null };
     }
-    return id;
   };
 
-  // Función para obtener el icono según el nombre del módulo
+  const expirationInfo = getExpirationStatus();
+
+  // Función para acortar el ID si es necesario
+  const shortenId = (id: string, length = 12) => {
+    return id.length > length ? `...${id.slice(-length)}` : id;
+  };
+
+  // Función para obtener el icono según el nombre del módulo principal
   const getModuleIcon = (moduleName: string) => {
-    switch (moduleName) {
-      case "panel_monitoreo":
-        return <BarChart2 className="w-5 h-5 text-blue-500" />;
-      case "empleados":
-        return <Users className="w-5 h-5 text-blue-500" />;
-      case "control_tiempo":
-        return <Clock className="w-5 h-5 text-blue-500" />;
-      case "control_acceso":
-        return <DoorClosed className="w-5 h-5 text-blue-500" />;
-      case "comedor":
-        return <Utensils className="w-5 h-5 text-blue-500" />;
-      case "reportes":
-        return <AlignCenter className="w-5 h-5 text-blue-500" />;
-      default:
-        return null;
-    }
+    const iconMap: Record<string, React.ElementType> = {
+      panel_monitoreo: BarChart2,
+      empleados: Users,
+      control_tiempo: Clock,
+      control_acceso: DoorClosed,
+      comedor: Utensils,
+      reportes: AlignCenter,
+    };
+    return iconMap[moduleName] || Info; // Icono por defecto
   };
 
-  // Función para obtener la etiqueta en español de cada módulo
+  // Función para obtener la etiqueta en español de cada módulo principal
   const getModuleLabel = (moduleName: string): string => {
     const labels: Record<string, string> = {
-      panel_monitoreo: "Panel de Monitoreo",
-      empleados: "Gestión de Empleados",
-      control_tiempo: "Control de Tiempo",
-      control_acceso: "Control de Acceso",
-      comedor: "Control de Comedor",
-      reportes: "Reportes y Estadísticas",
+      panel_monitoreo: "Monitoreo",
+      empleados: "Empleados",
+      control_tiempo: "Tiempo",
+      control_acceso: "Acceso",
+      comedor: "Comedor",
+      reportes: "Reportes",
     };
-
     return labels[moduleName] || moduleName;
+  };
+
+  // Clases CSS para el estado de expiración
+  const expirationBadgeClass = () => {
+    switch (expirationInfo.status) {
+      case "danger":
+        return "bg-red-100 text-red-800";
+      case "warning":
+        return "bg-yellow-100 text-yellow-800";
+      case "success":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
   };
 
   return (
     <div
-      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer"
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer flex flex-col h-full" // Added flex flex-col h-full
       onClick={() => onCardClick(license)}
     >
-      {/* Cabecera de la tarjeta */}
-      <div className="border-b border-gray-200 p-4 flex justify-between items-center">
-        <div className="flex items-center">
-          <div className="flex-shrink-0 h-10 w-10 mr-3">
-            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-gray-500" />
-            </div>
+      {/* Cabecera */}
+      <div className="border-b border-gray-200 p-3 flex justify-between items-start">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-gray-500" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 truncate max-w-xs">
-            {license.companyName}
-          </h3>
+          <div className="overflow-hidden">
+            <h3
+              className="text-base font-medium text-gray-900 truncate"
+              title={license.companyName}
+            >
+              {license.companyName}
+            </h3>
+            <p className="text-xs text-gray-500 truncate" title={license.id}>
+              ID: {shortenId(license.id, 8)} • RNC: {license.rnc}
+            </p>
+          </div>
         </div>
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onMenuClick(license, e);
             }}
-            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
             title="Más acciones"
           >
             <MoreVertical className="h-5 w-5" />
@@ -120,151 +142,163 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
         </div>
       </div>
 
-      {/* Cuerpo de la tarjeta */}
-      <div className="p-4">
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <p className="text-xs text-gray-500">ID</p>
-            <p className="text-sm font-medium truncate">
-              {shortenId(license.id)}
-            </p>
+      {/* Cuerpo */}
+      <div className="p-3 flex-grow">
+        {" "}
+        {/* Added flex-grow */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 text-xs">
+          {/* Contacto */}
+          <div
+            className="flex items-center text-gray-600 truncate"
+            title={license.contactInfo.name}
+          >
+            <User className="w-3.5 h-3.5 mr-1.5 text-gray-400 flex-shrink-0" />
+            <span className="truncate">{license.contactInfo.name || "-"}</span>
           </div>
-          <div>
-            <p className="text-xs text-gray-500">RNC</p>
-            <p className="text-sm font-medium">{license.rnc}</p>
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500">Contacto</p>
-            <div className="flex items-center text-sm">
-              <User className="w-3.5 h-3.5 mr-1 text-gray-400" />
-              <span className="truncate">
-                {license.contactInfo?.name || "Sin contacto"}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500">Vencimiento</p>
+          {/* Vencimiento */}
+          <div className="flex justify-end">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                getExpirationStatus(license.expirationDate) === "danger"
-                  ? "bg-red-100 text-red-800"
-                  : getExpirationStatus(license.expirationDate) === "warning"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-green-100 text-green-800"
-              }`}
+              className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${expirationBadgeClass()}`}
             >
               <Calendar className="w-3 h-3 mr-1" />
-              {formatDateDisplay(license.expirationDate)}
+              {formatDateForDisplay(license.expirationDate) || "N/A"}
             </span>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          {/* Fila de Compañías y Empleados */}
-          <div className="col-span-1">
-            <p className="text-xs text-gray-500 mb-1">Compañías</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {license.usedCompanies}/{license.allowedCompanies}
+          {/* Compañías */}
+          <div>
+            <p className="text-gray-500 mb-0.5">Compañías</p>
+            <div className="flex items-center">
+              <span className="font-medium text-gray-800">
+                {license.usedCompanies}
               </span>
-            </div>
-          </div>
-
-          <div className="col-span-1">
-            <p className="text-xs text-gray-500 mb-1">Empleados</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {license.activeEmployees}/{license.allowedEmployees}
-              </span>
-            </div>
-          </div>
-
-          {/* Fila de Estado */}
-          <div className="col-span-1">
-            <p className="text-xs text-gray-500 mb-1">Estado</p>
-          </div>
-
-          <div className="col-span-1">
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                license.status === "active"
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}
-            >
-              {license.status === "active" ? "Activo" : "Inactivo"}
-            </span>
-          </div>
-        </div>
-        <div className="w-full h-3.5"></div>
-
-        <div className="border-t border-gray-100 pt-3">
-          <p className="text-xs text-gray-500 mb-2">Módulos</p>
-          <div className="flex flex-wrap gap-3">
-            {license.moduleNames && license.moduleNames.length > 0 ? (
-              license.moduleNames.map((moduleName) => (
+              <span className="text-gray-500">/{license.allowedCompanies}</span>
+              {/* Barra de progreso simple */}
+              <div className="ml-2 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  key={moduleName}
-                  className="tooltip tooltip-bottom"
-                  data-tip={getModuleLabel(moduleName)}
-                >
-                  {getModuleIcon(moduleName)}
-                </div>
-              ))
+                  className="h-full bg-blue-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (license.usedCompanies / license.allowedCompanies) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          {/* Empleados */}
+          <div>
+            <p className="text-gray-500 mb-0.5">Empleados</p>
+            <div className="flex items-center">
+              <span className="font-medium text-gray-800">
+                {license.activeEmployees}
+              </span>
+              <span className="text-gray-500">/{license.allowedEmployees}</span>
+              <div className="ml-2 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (license.activeEmployees / license.allowedEmployees) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Módulos */}
+        <div className="border-t border-gray-100 pt-2">
+          <p className="text-xs text-gray-500 mb-1.5">Módulos</p>
+          <div className="flex flex-wrap gap-2">
+            {license.moduleNames && license.moduleNames.length > 0 ? (
+              license.moduleNames.map((moduleName) => {
+                const Icon = getModuleIcon(moduleName);
+                const label = getModuleLabel(moduleName);
+                return (
+                  <div
+                    key={moduleName}
+                    className="relative group flex items-center"
+                    title={label}
+                  >
+                    <Icon className="w-4 h-4 text-blue-600" />
+                    {/* Tooltip (opcional, si title no es suficiente) */}
+                    {/* <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block whitespace-nowrap bg-black text-white text-xs rounded py-1 px-2">{label}</span> */}
+                  </div>
+                );
+              })
             ) : (
-              <span className="text-gray-400 text-sm">Sin módulos</span>
+              <span className="text-gray-400 text-xs italic">Sin módulos</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Pie de la tarjeta */}
+      {/* Pie */}
       <div
-        className="border-t border-gray-200 p-2 bg-gray-50 flex justify-end space-x-1"
+        className="border-t border-gray-200 p-2 bg-gray-50 flex justify-between items-center mt-auto" // Added mt-auto
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCardClick(license);
-          }}
-          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-gray-200"
-          title="Editar licencia"
+        {/* Estado Activo/Inactivo */}
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            license.status === "active"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
         >
-          <FileEdit className="h-5 w-5 text-blue-500" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRenew(license);
-          }}
-          className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-gray-200"
-          title="Renovar licencia"
-        >
-          <AlertTriangle className="w-5 h-5 text-yellow-500" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onHistory(license);
-          }}
-          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-gray-200"
-          title="Historial de cambios"
-        >
-          <Clock className="w-5 h-5 text-purple-500" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(license);
-          }}
-          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-gray-200"
-          title="Eliminar licencia"
-        >
-          <Trash2 className="h-5 w-5" />
-        </button>
+          {license.status === "active" ? (
+            <CheckCircle className="w-3 h-3 mr-1" />
+          ) : (
+            <XCircle className="w-3 h-3 mr-1" />
+          )}
+          {license.status === "active" ? "Activo" : "Inactivo"}
+        </span>
+
+        {/* Botones de Acción Rápida */}
+        <div className="flex space-x-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCardClick(license);
+            }}
+            className="text-blue-500 hover:bg-blue-100 p-1 rounded"
+            title="Editar"
+          >
+            <FileEdit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRenew(license);
+            }}
+            className="text-yellow-500 hover:bg-yellow-100 p-1 rounded"
+            title="Renovar"
+          >
+            <AlertTriangle className="w-4 h-4" />
+          </button>
+          {/* <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistory(license);
+            }}
+            className="text-purple-500 hover:bg-purple-100 p-1 rounded"
+            title="Historial"
+          >
+            <Clock className="w-4 h-4" />
+          </button> */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(license);
+            }}
+            className="text-red-500 hover:bg-red-100 p-1 rounded"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

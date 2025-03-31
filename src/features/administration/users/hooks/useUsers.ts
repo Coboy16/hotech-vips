@@ -1,5 +1,3 @@
-// src/features/users/hooks/useUsers.ts
-
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { userService } from "../services/userService";

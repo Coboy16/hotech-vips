@@ -8,13 +8,10 @@ const DashboardScreen = lazy(
   () => import("../features/dashboard/components/DashboardScreen")
 );
 const StructureScreen = lazy(
-  () =>
-    import(
-      "../features/system_configuration/companies/components/StructureScreen"
-    )
+  () => import("../features/system_configuration/companies/StructureScreen")
 );
 const UsersScreen = lazy(
-  () => import("../features/administration/users/components/UsersScreen")
+  () => import("../features/administration/users/UsersScreen")
 );
 
 const LicensesScreen = lazy(
