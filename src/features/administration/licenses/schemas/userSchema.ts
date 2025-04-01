@@ -1,12 +1,17 @@
 import { z } from "zod";
 
-// Regex para validar UUIDs
 const UUID_REGEX =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-// Helper para validar fechas ISO 8601 (YYYY-MM-DDTHH:mm:ssZ o YYYY-MM-DDTHH:mm:ss.sssZ)
-const isoDateTimeRegex =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+// Tipo para los valores permitidos de structure_type (exportado)
+export const structureTypeEnum = z.enum(
+  ["company", "sede", "department", "section", "unit"],
+  {
+    // Mensajes de error si la validación falla, aunque la obligatoriedad se ve en superRefine
+    invalid_type_error: "Tipo de estructura inválido",
+  }
+);
+export type StructureType = z.infer<typeof structureTypeEnum>;
 
 // Schema de validación para el formulario de usuario
 export const userFormValidationSchema = z
@@ -27,27 +32,12 @@ export const userFormValidationSchema = z
       .string()
       .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
       .optional()
-      .or(z.literal("")), // Permite string vacío también si es opcional
+      .or(z.literal("")),
 
-    // --- Fechas (Opcionales en el form, el adapter pondrá defaults) ---
-    usua_fein: z
-      .string()
-      .regex(isoDateTimeRegex, "Formato de fecha inicio inválido (ISO 8601)")
-      .optional()
-      .or(z.literal("")),
-    usua_fevc: z
-      .string()
-      .regex(isoDateTimeRegex, "Formato de fecha control inválido (ISO 8601)")
-      .optional()
-      .or(z.literal("")),
-    usua_feve: z
-      .string()
-      .regex(
-        isoDateTimeRegex,
-        "Formato de fecha vencimiento inválido (ISO 8601)"
-      )
-      .optional()
-      .or(z.literal("")),
+    // --- Fechas ---
+    usua_fein: z.string().optional().or(z.literal("")),
+    usua_fevc: z.string().optional().or(z.literal("")),
+    usua_feve: z.string().optional().or(z.literal("")),
 
     // --- Estado ---
     usua_stat: z.boolean().default(true),
@@ -55,28 +45,23 @@ export const userFormValidationSchema = z
     // --- Permisos y Roles ---
     rol_id: z
       .string({ required_error: "Debe seleccionar un rol" })
-      .min(1, "Debe seleccionar un rol") // Chequea string vacío
+      .min(1, "Debe seleccionar un rol")
       .uuid({ message: "El ID del rol seleccionado no es un UUID válido" }),
-
     userPermissions: z
       .array(
         z.string().uuid("Cada permiso debe ser un ID de módulo válido (UUID)")
       )
-      .optional() // Puede ser un array vacío
-      .default([]), // Valor por defecto array vacío
+      .optional()
+      .default([]),
 
     // --- Estructuras ---
-    structure_type: z.enum(
-      ["company", "sede", "department", "section", "unit"],
-      {
-        required_error: "Debe seleccionar un tipo de estructura",
-        invalid_type_error: "Tipo de estructura inválido",
-      }
-    ),
-    structure_id: z.string().optional(), // La validación UUID se hace en superRefine
+    // Tipos opcionales aquí, la validación fuerte está en superRefine
+    structure_type: structureTypeEnum.or(z.literal("")).optional(),
+    // ID opcional aquí, validado en superRefine
+    structure_id: z.string().optional(),
     assignStructureLater: z.boolean().default(false),
 
-    // ID de la licencia (validado como UUID)
+    // ID de la licencia
     company_license_id: z
       .string({ required_error: "La licencia es requerida" })
       .min(1, "La licencia es requerida")
@@ -85,43 +70,58 @@ export const userFormValidationSchema = z
   .superRefine((data, ctx) => {
     console.log("[userSchema] Ejecutando superRefine con data:", data);
 
-    // Validación condicional para structure_id
+    // --- Validación condicional para ESTRUCTURAS ---
+    // Solo validar tipo e ID si NO se va a asignar más tarde
     if (!data.assignStructureLater) {
-      // Chequeo más explícito de string vacío o null/undefined
-      if (!data.structure_id || data.structure_id.trim() === "") {
+      // 1. Validar que structure_type esté seleccionado (no sea vacío o nulo)
+      if (!data.structure_type || data.structure_type === undefined) {
         console.log(
-          "[userSchema] Error: structure_id requerido pero está vacío/nulo."
-        );
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Debe seleccionar una estructura válida", // Mensaje claro
-          path: ["structure_id"],
-        });
-        // Solo validar formato UUID si *no* está vacío
-      } else if (!UUID_REGEX.test(data.structure_id)) {
-        console.log(
-          "[userSchema] Error: structure_id no es UUID válido:",
-          data.structure_id
+          "[userSchema] superRefine Error: structure_type requerido pero está vacío."
         );
         ctx.addIssue({
           code: z.ZodIssueCode.custom, // Usar custom para mensaje específico
-          message: `El ID de estructura '${data.structure_id}' no es un UUID válido`,
+          message: "Debe seleccionar un tipo de estructura",
+          path: ["structure_type"], // Ruta al campo que falló
+        });
+      }
+
+      // 2. Validar que structure_id esté presente y sea UUID
+      // (No necesitamos validar formato si el tipo es 'company', ya que usaremos license_id)
+      if (!data.structure_id || data.structure_id.trim() === "") {
+        console.log(
+          "[userSchema] superRefine Error: structure_id requerido pero está vacío/nulo."
+        );
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Debe seleccionar una estructura específica",
           path: ["structure_id"],
         });
       }
-    }
-
-    // Validación para userPermissions (ejemplo: requerir al menos uno si es necesario)
-    // if (data.userPermissions && data.userPermissions.length === 0) {
-    //   ctx.addIssue({
-    //     code: z.ZodIssueCode.custom,
-    //     message: "Debe seleccionar al menos un permiso de módulo",
-    //     path: ["userPermissions"],
-    //   });
-    // }
+      // Validar formato UUID solo si el ID existe y el tipo NO es company
+      // (porque para company usamos license_id que ya validamos arriba)
+      else if (
+        data.structure_type !== "company" &&
+        !UUID_REGEX.test(data.structure_id)
+      ) {
+        console.log(
+          `[userSchema] superRefine Error: structure_id (${data.structure_id}) no es UUID válido para tipo ${data.structure_type}.`
+        );
+        ctx.addIssue({
+          code: z.ZodIssueCode.invalid_string,
+          validation: "uuid",
+          message: `El ID de estructura seleccionado no es válido`,
+          path: ["structure_id"],
+        });
+      }
+      // Podríamos añadir una validación extra para asegurar que si type es company, el ID coincida con license_id,
+      // pero como lo forzamos en el form y el adapter, quizás no sea necesario aquí.
+      // else if (data.structure_type === 'company' && data.structure_id !== data.company_license_id) {
+      //    // ... añadir issue ...
+      // }
+    } // Fin del if (!data.assignStructureLater)
 
     console.log("[userSchema] Validación superRefine completada.");
   });
 
-// Tipo derivado del schema para usar en React Hook Form
+// Tipo derivado
 export type UserFormData = z.infer<typeof userFormValidationSchema>;
