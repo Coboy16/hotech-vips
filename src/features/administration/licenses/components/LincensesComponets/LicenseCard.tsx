@@ -17,8 +17,8 @@ import {
   XCircle,
   Info,
 } from "lucide-react";
-import { License } from "../../../../model/license"; // Importa desde model
-import { formatDateForDisplay } from "../utils/adapters"; // Importa formateador
+import { License } from "../../../../../model/license"; // Importa desde model
+import { formatDateForDisplay } from "../../utils/adapters"; // Importa formateador
 
 interface LicenseCardProps {
   license: License;

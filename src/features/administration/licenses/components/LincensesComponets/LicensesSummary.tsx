@@ -1,6 +1,6 @@
 import React from "react";
 import { Building2, CheckCircle, AlertTriangle, Clock } from "lucide-react";
-import { License } from "../../../../model/license";
+import { License } from "../../../../../model/license";
 
 interface LicensesSummaryProps {
   licenses: License[];

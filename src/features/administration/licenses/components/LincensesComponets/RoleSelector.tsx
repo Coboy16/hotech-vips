@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { roleService } from "../services/roleService";
-import { ApiRole } from "../../../../model/role";
+import { roleService } from "../../services/roleService";
+import { ApiRole } from "../../../../../model/role";
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface RoleSelectorProps {

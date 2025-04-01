@@ -27,34 +27,43 @@ export const userFormValidationSchema = z
       .string()
       .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
       .optional()
-      .or(z.literal("")),
+      .or(z.literal("")), // Permite string vacío también si es opcional
 
-    // --- Fechas ---
+    // --- Fechas (Opcionales en el form, el adapter pondrá defaults) ---
     usua_fein: z
       .string()
       .regex(isoDateTimeRegex, "Formato de fecha inicio inválido (ISO 8601)")
-      .optional(),
+      .optional()
+      .or(z.literal("")),
     usua_fevc: z
       .string()
       .regex(isoDateTimeRegex, "Formato de fecha control inválido (ISO 8601)")
-      .optional(),
+      .optional()
+      .or(z.literal("")),
     usua_feve: z
       .string()
       .regex(
         isoDateTimeRegex,
         "Formato de fecha vencimiento inválido (ISO 8601)"
       )
-      .optional(),
+      .optional()
+      .or(z.literal("")),
 
     // --- Estado ---
     usua_stat: z.boolean().default(true),
 
-    // --- Accesos y Permisos ---
-    // Añadido refine para chequear explícitamente que no sea string vacío
+    // --- Permisos y Roles ---
     rol_id: z
       .string({ required_error: "Debe seleccionar un rol" })
-      .min(1, "Debe seleccionar un rol") // Ya chequea string vacío
-      .uuid({ message: "El ID del rol seleccionado no es un UUID válido" }), // Mensaje más específico
+      .min(1, "Debe seleccionar un rol") // Chequea string vacío
+      .uuid({ message: "El ID del rol seleccionado no es un UUID válido" }),
+
+    userPermissions: z
+      .array(
+        z.string().uuid("Cada permiso debe ser un ID de módulo válido (UUID)")
+      )
+      .optional() // Puede ser un array vacío
+      .default([]), // Valor por defecto array vacío
 
     // --- Estructuras ---
     structure_type: z.enum(
@@ -67,11 +76,11 @@ export const userFormValidationSchema = z
     structure_id: z.string().optional(), // La validación UUID se hace en superRefine
     assignStructureLater: z.boolean().default(false),
 
-    // Añadido refine para chequear explícitamente que no sea string vacío
+    // ID de la licencia (validado como UUID)
     company_license_id: z
       .string({ required_error: "La licencia es requerida" })
-      .min(1, "La licencia es requerida") // Ya chequea string vacío
-      .uuid({ message: "El ID de la licencia asociada no es un UUID válido" }), // Mensaje más específico
+      .min(1, "La licencia es requerida")
+      .uuid({ message: "El ID de la licencia asociada no es un UUID válido" }),
   })
   .superRefine((data, ctx) => {
     console.log("[userSchema] Ejecutando superRefine con data:", data);
@@ -101,6 +110,15 @@ export const userFormValidationSchema = z
         });
       }
     }
+
+    // Validación para userPermissions (ejemplo: requerir al menos uno si es necesario)
+    // if (data.userPermissions && data.userPermissions.length === 0) {
+    //   ctx.addIssue({
+    //     code: z.ZodIssueCode.custom,
+    //     message: "Debe seleccionar al menos un permiso de módulo",
+    //     path: ["userPermissions"],
+    //   });
+    // }
 
     console.log("[userSchema] Validación superRefine completada.");
   });

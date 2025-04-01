@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from "lucide-react";
-import type { License } from "../types/license";
+import { License } from "../../../../../model";
 
 interface DeleteLicenseModalProps {
   license: License;

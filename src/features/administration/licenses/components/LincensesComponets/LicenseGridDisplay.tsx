@@ -1,6 +1,6 @@
 import React from "react";
 import LicenseGrid from "./LicenseGrid"; // Reutiliza el componente que maneja el layout de cuadrícula
-import { LicenseGridDisplayProps } from "../types"; // Importa la interfaz de props
+import { LicenseGridDisplayProps } from "../../types"; // Importa la interfaz de props
 
 const LicenseGridDisplay: React.FC<LicenseGridDisplayProps> = ({
   licenses,
