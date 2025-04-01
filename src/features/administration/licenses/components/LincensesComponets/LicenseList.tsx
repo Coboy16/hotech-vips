@@ -1,7 +1,7 @@
 import React from "react";
-import SortableTable from "../../../../components/common/table/SortableTable";
-import Pagination from "../../../../components/common/table/Pagination";
-import { LicenseListProps } from "../types";
+import SortableTable from "../../../../../components/common/table/SortableTable";
+import Pagination from "../../../../../components/common/table/Pagination";
+import { LicenseListProps } from "../../types";
 
 const LicenseList: React.FC<LicenseListProps> = ({
   licenses,

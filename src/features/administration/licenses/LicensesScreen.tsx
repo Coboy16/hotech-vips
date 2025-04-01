@@ -27,38 +27,57 @@ import {
   licenseFormDataToApiCreateDto,
   licenseFormDataToApiUpdateDto,
   renewalFormDataToApiDto,
+  // extractMainModules,
 } from "./utils/adapters";
 import { LicenseFormData, RenewLicenseFormData } from "./schemas/licenseSchema"; // Importa tipos Zod
 
 // Importaciones de Componentes Presentacionales y Comunes
 import Filters from "../../../components/common/table/Filters"; // Ajusta la ruta si es necesario
 import { ColumnDefinition } from "../../../components/common/table/SortableTable"; // Ajusta la ruta
-import LicensesSummary from "./components/LicensesSummary";
-import LicenseContextMenu from "./components/LicenseContextMenu";
-import LicenseList from "./components/LicenseList"; // Nuevo componente presentacional
-import LicenseGridDisplay from "./components/LicenseGridDisplay"; // Nuevo componente presentacional
+import LicensesSummary from "./components/LincensesComponets/LicensesSummary";
+import LicenseContextMenu from "./components/LincensesComponets/LicenseContextMenu";
+import LicenseList from "./components/LincensesComponets/LicenseList"; // Nuevo componente presentacional
+import LicenseGridDisplay from "./components/LincensesComponets/LicenseGridDisplay"; // Nuevo componente presentacional
 
 // Importaciones de Modales
-import { LicenseForm } from "./components/LicenseForm";
-import LicenseRenewalModal from "./components/LicenseRenewalModal";
-import DeleteLicenseModal from "./components/DeleteLicenseModal";
-import LicenseHistoryModal from "./components/LicenseHistoryModal";
-import { UserForm } from "./components/UserForm";
+import { LicenseForm } from "./components/LincensesComponets/LicenseForm";
+import LicenseRenewalModal from "./components/LincensesComponets/LicenseRenewalModal";
+import DeleteLicenseModal from "./components/LincensesComponets/DeleteLicenseModal";
+// import LicenseHistoryModal from "./components/LicenseHistoryModal";
+import { UserForm } from "./components/userComponets/UserForm";
 import { formDataToApiCreateDto as userFormDataToApiDto } from "./utils/userAdapters";
 import { UserFormData } from "./schemas/userSchema";
 import { userService } from "./services/userService";
+import { AvailableModuleOption } from "./components/userComponets/UserModuleSelector";
+
+const permissionToLabelMap: Record<string, string> = {
+  panel_monitoreo: "Panel de Monitoreo",
+  empleados: "Empleados",
+  gestion_empleados: "Gestión de Empleados",
+  control_tiempo: "Control de Tiempo",
+  planificador_horarios: "Planificador de horarios",
+  gestion_incidencias: "Gestión de Incidencias",
+  calendario: "Calendario",
+  control_acceso: "Control de Acceso",
+  visitantes: "Visitantes",
+  permisos_acceso: "Permisos de Acceso",
+  comedor: "Comedor",
+  reportes: "Reportes",
+  reportes_mas_usados: "Reportes más usados",
+  // Añade aquí CUALQUIER otro 'name' de módulo que tu API pueda devolver
+};
 
 export function LicensesScreen() {
   // --- Estados del Contenedor ---
   const [licenses, setLicenses] = useState<License[]>([]); // Licencias en formato UI
-  const [, setAllModules] = useState<ModuleFromApi[]>([]); // Módulos disponibles
+  const [apiLicensesData, setApiLicensesData] = useState<ApiLicense[]>([]); // <-- GUARDAR DATA ORIGINAL API
+  const [, setAllModules] = useState<ModuleFromApi[]>([]); // Módulos disponibles Globales
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Estado UI: Filtros, Vista, Paginación
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  // const [filterModule, setFilterModule] = useState("all"); // Filtrado por módulo se hará sobre moduleNames
   const [filterExpiration, setFilterExpiration] = useState("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortKey, setSortKey] = useState<string>("companyName");
@@ -72,67 +91,129 @@ export function LicensesScreen() {
     useState<License | null>(null);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [licenseToRenew, setLicenseToRenew] = useState<License | null>(null);
-  const [isRenewing, setIsRenewing] = useState(false); // Estado de carga para renovación
-  const [isSaving, setIsSaving] = useState(false); // Estado de carga para guardar (crear/editar)
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [licenseToDelete, setLicenseToDelete] = useState<License | null>(null);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [licenseForHistory] = useState<License | null>(null);
+  // const [showHistoryModal, setShowHistoryModal] = useState(false);
+  // const [licenseForHistory, setLicenseForHistory] = useState<License | null>(null); // Comentado si no se usa
   const [contextMenuLicense, setContextMenuLicense] = useState<License | null>(
     null
   );
+
+  // --- NUEVO: Estados para UserForm ---
   const [showUserFormModal, setShowUserFormModal] = useState(false);
   const [selectedLicenseForUserCreation, setSelectedLicenseForUserCreation] =
     useState<License | null>(null);
+  const [modulesForSelectedLicense, setModulesForSelectedLicense] = useState<
+    AvailableModuleOption[]
+  >([]); // Estado para módulos
   const [isSavingUser, setIsSavingUser] = useState(false);
 
+  // --- Handlers UserForm ---
   const handleSaveUser = async (formData: UserFormData) => {
     if (!selectedLicenseForUserCreation) {
       toast.error("Error: No se ha especificado la licencia para el usuario.");
       return;
     }
-    setIsSavingUser(true); // Activa estado de carga específico
+    setIsSavingUser(true);
     console.log("Intentando guardar usuario con datos:", formData);
 
-    try {
-      // 1. Adaptar datos del formulario al DTO de la API
-      // Asegurarse que company_license_id esté correcto
-      const userDto = userFormDataToApiDto({
-        ...formData,
-        company_license_id: selectedLicenseForUserCreation.id, // Sobreescribir por si acaso
-      });
+    // --- OBTENER MÓDULOS ORIGINALES DE LA LICENCIA ---
+    // Necesitamos los datos de `modules_licence` de la ApiLicense original
+    const originalApiLicense = apiLicensesData.find(
+      (apiLic) => apiLic.license_id === selectedLicenseForUserCreation.id
+    );
 
-      // 2. Llamar al servicio de creación de usuario
+    if (!originalApiLicense) {
+      toast.error(
+        "Error interno: No se encontraron los datos originales de la licencia."
+      );
+      setIsSavingUser(false);
+      return;
+    }
+    // Asegurarse de que modules_licence exista y sea un array (puede ser vacío)
+    const originalLicenseModules = originalApiLicense.modules_licence || [];
+    // --- FIN OBTENER MÓDULOS ---
+
+    try {
+      // --- PASAR MÓDULOS AL ADAPTADOR ---
+      const userDto = userFormDataToApiDto(
+        {
+          ...formData,
+          company_license_id: selectedLicenseForUserCreation.id,
+        },
+        originalLicenseModules // <-- Pasar el array original
+      );
+      // --- FIN PASAR MÓDULOS ---
+
+      console.log("DTO a enviar:", userDto); // Log antes de enviar
+
       const newUser = await userService.register(userDto);
 
-      // 3. Manejar respuesta
       if (newUser) {
         toast.success(`Usuario ${newUser.usua_nomb} creado exitosamente.`);
-        setShowUserFormModal(false); // Cierra el modal
-        setSelectedLicenseForUserCreation(null); // Limpia la licencia seleccionada
-        // Opcional: Podrías querer recargar alguna lista de usuarios si la hubiera
+        setShowUserFormModal(false);
+        setSelectedLicenseForUserCreation(null);
+        setModulesForSelectedLicense([]);
       } else {
-        // El servicio userService y makeRequest ya deberían haber mostrado un toast de error
         console.error(
-          "La creación del usuario falló, el servicio devolvió null."
+          "La creación del usuario falló (servicio devolvió null o error manejado)."
         );
-        // Mantener el modal abierto para posible corrección
+        // Mantener modal abierto
       }
     } catch (error) {
-      // Error inesperado no capturado por makeRequest/userService
       console.error("Error inesperado al guardar usuario:", error);
       toast.error("Ocurrió un error inesperado al crear el usuario.");
-      // Mantener el modal abierto
+      // Mantener modal abierto
     } finally {
-      setIsSavingUser(false); // Desactiva estado de carga
+      setIsSavingUser(false);
     }
   };
 
   const handleOpenUserForm = (license: License) => {
-    console.log("Abriendo formulario de usuario para licencia:", license.id);
-    setSelectedLicenseForUserCreation(license); // Guarda la licencia seleccionada
-    setShowUserFormModal(true); // Muestra el modal de usuario
-    setContextMenuLicense(null); // Cierra el menú contextual
+    console.log(
+      "Abriendo formulario de usuario para licencia:",
+      license.id,
+      license.companyName
+    );
+    setSelectedLicenseForUserCreation(license);
+
+    // --- Preparar Módulos Disponibles ---
+    // Buscar la licencia original de la API usando el ID de la licencia UI
+    const originalApiLicense = apiLicensesData.find(
+      (apiLic) => apiLic.license_id === license.id
+    );
+
+    if (!originalApiLicense || !originalApiLicense.modules_licence) {
+      console.warn(
+        `No se encontraron datos de módulos detallados para la licencia ${license.id}`
+      );
+      setModulesForSelectedLicense([]); // Poner vacío si no hay módulos
+    } else {
+      const availableModules = originalApiLicense.modules_licence
+        .map((ml) => {
+          const moduleInfo = ml.module;
+          return {
+            id: moduleInfo.module_id,
+            // Usar el mapa de etiquetas, o el 'name' como fallback, o el ID si todo falla
+            label:
+              permissionToLabelMap[moduleInfo.name] ||
+              moduleInfo.name ||
+              moduleInfo.module_id,
+          };
+        })
+        .filter((mod) => mod.id && mod.label); // Asegurar que tenemos ID y Label
+
+      console.log(
+        "Módulos disponibles extraídos para UserForm:",
+        availableModules
+      );
+      setModulesForSelectedLicense(availableModules);
+    }
+
+    setShowUserFormModal(true);
+    setContextMenuLicense(null);
   };
 
   // --- Carga de Datos ---
@@ -140,13 +221,16 @@ export function LicensesScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      // Cargar módulos primero (o en paralelo) - usa caché interna
+      // Cargar módulos globales primero (usa caché interna)
       const modulesData = await moduleService.getAllModules();
-      setAllModules(modulesData); // Guardar para referencia si es necesario
+      setAllModules(modulesData);
 
-      // Cargar licencias
+      // Cargar licencias (datos crudos de API)
       const apiLicenses = await licenseService.getAll();
-      const uiLicenses = apiLicenses.map(apiToUiLicense); // Transforma a formato UI
+      setApiLicensesData(apiLicenses); // <-- GUARDAR DATOS CRUDOS
+
+      // Transformar a formato UI para mostrar
+      const uiLicenses = apiLicenses.map((apiLic) => apiToUiLicense(apiLic));
       setLicenses(uiLicenses);
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
@@ -155,13 +239,13 @@ export function LicensesScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // No necesita dependencias si solo se llama una vez
 
   useEffect(() => {
     loadLicensesAndModules();
-  }, [loadLicensesAndModules]); // Carga inicial
+  }, [loadLicensesAndModules]);
 
-  // --- Lógica de Filtrado y Ordenamiento ---
+  // --- Lógica de Filtrado y Ordenamiento (Sin cambios relevantes) ---
   const filteredLicenses = licenses.filter((license) => {
     const lowerSearchTerm = searchTerm.toLowerCase();
     const matchesSearch =
@@ -171,9 +255,6 @@ export function LicensesScreen() {
 
     const matchesStatus =
       filterStatus === "all" || license.status === filterStatus;
-
-    // Filtrado por módulo principal (usando moduleNames generado en el adapter)
-    // const matchesModule = filterModule === 'all' || (license.moduleNames && license.moduleNames.includes(filterModule));
 
     const matchesExpiration =
       filterExpiration === "all" ||
@@ -189,7 +270,7 @@ export function LicensesScreen() {
 
           switch (filterExpiration) {
             case "danger":
-              return diffDays <= 30; // Incluye vencidas y hasta 30 días
+              return diffDays <= 30;
             case "warning":
               return diffDays > 30 && diffDays <= 90;
             case "safe":
@@ -202,9 +283,9 @@ export function LicensesScreen() {
         }
       })();
 
-    // return matchesSearch && matchesStatus && matchesModule && matchesExpiration;
-    return matchesSearch && matchesStatus && matchesExpiration; // Quitado filtro por módulo temporalmente
+    return matchesSearch && matchesStatus && matchesExpiration;
   });
+
   // --- Definición de Columnas para la Tabla ---
   const columns: ColumnDefinition<License>[] = [
     {
@@ -888,12 +969,13 @@ export function LicensesScreen() {
         />
       )}
 
-      {showHistoryModal && licenseForHistory && (
+      {/* {showHistoryModal && licenseForHistory && (
         <LicenseHistoryModal
           license={licenseForHistory}
           onClose={() => setShowHistoryModal(false)}
         />
-      )}
+      )} */}
+
       {/* --- NUEVO: Modal de Formulario de Usuario --- */}
       {showUserFormModal && selectedLicenseForUserCreation && (
         <UserForm
@@ -910,6 +992,7 @@ export function LicensesScreen() {
             name: selectedLicenseForUserCreation.companyName,
             code: selectedLicenseForUserCreation.rnc, // Usar RNC como código o ajustar si hay otro
           }}
+          availableModules={modulesForSelectedLicense}
         />
       )}
     </div>

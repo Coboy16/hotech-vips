@@ -14,10 +14,13 @@ import {
   FileText,
   AlertCircle,
 } from "lucide-react";
-import { License } from "../../../../model/license";
-import { LicenseFormData, createLicenseSchema } from "../schemas/licenseSchema";
+import { License } from "../../../../../model/license";
+import {
+  LicenseFormData,
+  createLicenseSchema,
+} from "../../schemas/licenseSchema";
 import { ModuleSelector } from "./ModuleSelector";
-import { formatDateForInput } from "../utils/adapters";
+import { formatDateForInput } from "../../utils/adapters";
 
 interface LicenseFormProps {
   license?: License | null;

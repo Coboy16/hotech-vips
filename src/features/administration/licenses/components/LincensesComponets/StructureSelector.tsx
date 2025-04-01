@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { structureService } from "../services/structureService";
+import { structureService } from "../../services/structureService";
 import {
   ApiStructureTreeResponse,
   StructureSelectItem,
-} from "../../../../model/structure";
+} from "../../../../../model/structure";
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface StructureSelectorProps {

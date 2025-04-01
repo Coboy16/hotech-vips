@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import LicenseCard from "./LicenseCard";
-import { License } from "../../../../model/license"; // Importa desde model
-import Pagination from "../../../../components/common/table/Pagination"; // Asegura ruta correcta
+import { License } from "../../../../../model/license"; // Importa desde model
+import Pagination from "../../../../../components/common/table/Pagination"; // Asegura ruta correcta
 
 interface LicenseGridProps {
   licenses: License[];

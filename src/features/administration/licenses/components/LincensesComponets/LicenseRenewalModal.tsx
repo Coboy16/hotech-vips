@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Calendar, RotateCw } from "lucide-react";
-import { License } from "../../../../model/license"; // Importa desde model
+import { License } from "../../../../../model/license"; // Importa desde model
 import {
   RenewLicenseFormData,
   renewLicenseSchema,
-} from "../schemas/licenseSchema"; // Importa schema y tipo Zod
-import { formatDateForInput, formatDateForDisplay } from "../utils/adapters"; // Importa formateadores
+} from "../../schemas/licenseSchema"; // Importa schema y tipo Zod
+import { formatDateForInput, formatDateForDisplay } from "../../utils/adapters"; // Importa formateadores
 
 interface LicenseRenewalModalProps {
   license: License; // Licencia actual (formato UI)
