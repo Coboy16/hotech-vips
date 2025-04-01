@@ -43,6 +43,10 @@ import { LicenseForm } from "./components/LicenseForm";
 import LicenseRenewalModal from "./components/LicenseRenewalModal";
 import DeleteLicenseModal from "./components/DeleteLicenseModal";
 import LicenseHistoryModal from "./components/LicenseHistoryModal";
+import { UserForm } from "./components/UserForm";
+import { formDataToApiCreateDto as userFormDataToApiDto } from "./utils/userAdapters";
+import { UserFormData } from "./schemas/userSchema";
+import { userService } from "./services/userService";
 
 export function LicensesScreen() {
   // --- Estados del Contenedor ---
@@ -77,6 +81,59 @@ export function LicensesScreen() {
   const [contextMenuLicense, setContextMenuLicense] = useState<License | null>(
     null
   );
+  const [showUserFormModal, setShowUserFormModal] = useState(false);
+  const [selectedLicenseForUserCreation, setSelectedLicenseForUserCreation] =
+    useState<License | null>(null);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  const handleSaveUser = async (formData: UserFormData) => {
+    if (!selectedLicenseForUserCreation) {
+      toast.error("Error: No se ha especificado la licencia para el usuario.");
+      return;
+    }
+    setIsSavingUser(true); // Activa estado de carga específico
+    console.log("Intentando guardar usuario con datos:", formData);
+
+    try {
+      // 1. Adaptar datos del formulario al DTO de la API
+      // Asegurarse que company_license_id esté correcto
+      const userDto = userFormDataToApiDto({
+        ...formData,
+        company_license_id: selectedLicenseForUserCreation.id, // Sobreescribir por si acaso
+      });
+
+      // 2. Llamar al servicio de creación de usuario
+      const newUser = await userService.register(userDto);
+
+      // 3. Manejar respuesta
+      if (newUser) {
+        toast.success(`Usuario ${newUser.usua_nomb} creado exitosamente.`);
+        setShowUserFormModal(false); // Cierra el modal
+        setSelectedLicenseForUserCreation(null); // Limpia la licencia seleccionada
+        // Opcional: Podrías querer recargar alguna lista de usuarios si la hubiera
+      } else {
+        // El servicio userService y makeRequest ya deberían haber mostrado un toast de error
+        console.error(
+          "La creación del usuario falló, el servicio devolvió null."
+        );
+        // Mantener el modal abierto para posible corrección
+      }
+    } catch (error) {
+      // Error inesperado no capturado por makeRequest/userService
+      console.error("Error inesperado al guardar usuario:", error);
+      toast.error("Ocurrió un error inesperado al crear el usuario.");
+      // Mantener el modal abierto
+    } finally {
+      setIsSavingUser(false); // Desactiva estado de carga
+    }
+  };
+
+  const handleOpenUserForm = (license: License) => {
+    console.log("Abriendo formulario de usuario para licencia:", license.id);
+    setSelectedLicenseForUserCreation(license); // Guarda la licencia seleccionada
+    setShowUserFormModal(true); // Muestra el modal de usuario
+    setContextMenuLicense(null); // Cierra el menú contextual
+  };
 
   // --- Carga de Datos ---
   const loadLicensesAndModules = useCallback(async () => {
@@ -357,6 +414,7 @@ export function LicensesScreen() {
               onExport={handleExportLicense}
               // onHistory={handleOpenHistoryModal}
               onDelete={handleOpenDeleteModal}
+              onOpenUserForm={handleOpenUserForm}
             />
           )}
         </div>
@@ -789,6 +847,7 @@ export function LicensesScreen() {
                   onExport={handleExportLicense}
                   // onHistory={handleOpenHistoryModal}
                   onDelete={handleOpenDeleteModal}
+                  onOpenUserForm={handleOpenUserForm}
                 />
               ),
             }}
@@ -833,6 +892,24 @@ export function LicensesScreen() {
         <LicenseHistoryModal
           license={licenseForHistory}
           onClose={() => setShowHistoryModal(false)}
+        />
+      )}
+      {/* --- NUEVO: Modal de Formulario de Usuario --- */}
+      {showUserFormModal && selectedLicenseForUserCreation && (
+        <UserForm
+          // user={null} // Siempre para creación en este flujo
+          onClose={() => {
+            setShowUserFormModal(false);
+            setSelectedLicenseForUserCreation(null); // Limpiar al cerrar
+          }}
+          onSave={handleSaveUser} // Handler que llama al servicio
+          isLoading={isSavingUser} // Estado de carga específico
+          licenseInfo={{
+            // Pasar info de la licencia seleccionada
+            id: selectedLicenseForUserCreation.id,
+            name: selectedLicenseForUserCreation.companyName,
+            code: selectedLicenseForUserCreation.rnc, // Usar RNC como código o ajustar si hay otro
+          }}
         />
       )}
     </div>
