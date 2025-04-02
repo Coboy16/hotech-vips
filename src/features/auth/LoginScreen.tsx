@@ -1,93 +1,143 @@
-import React, { useState } from "react";
-import { Lock, Mail } from "lucide-react";
+import { useState } from "react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { RecoveryModal } from "./components/RecoveryModal";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { LoginCredentials } from "./types";
 
+// --- Esquema de Validación con Zod ---
+const loginSchema = z.object({
+  email: z
+    .string({
+      required_error: "El correo electrónico es requerido.",
+      invalid_type_error: "El correo debe ser texto.",
+    })
+    .min(1, { message: "El correo electrónico es requerido." }) // No debe estar vacío
+    .email({ message: "Por favor, introduce un correo electrónico válido." })
+    .max(100, { message: "El correo no puede exceder los 100 caracteres." }) // Límite de longitud
+    .trim(), // Elimina espacios al inicio y final
+  password: z
+    .string({
+      required_error: "La contraseña es requerida.",
+      invalid_type_error: "La contraseña debe ser texto.",
+    })
+    .min(1, { message: "La contraseña es requerida." }) // No debe estar vacía
+    // Añade aquí reglas más específicas si las tienes (longitud, caracteres especiales, etc.)
+    // Ejemplo: .min(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
+    .max(100, {
+      message: "La contraseña no puede exceder los 100 caracteres.",
+    }), // Límite de longitud
+  // Zod no valida contra listas de contraseñas comunes, eso sería lógica adicional
+  rememberMe: z.boolean().optional(), // Checkbox es opcional
+});
+
+// --- Tipo Inferido del Formulario ---
+// RHF usará este tipo para el autocompletado y la validación
+type LoginFormInputs = z.infer<typeof loginSchema>;
+
+// --- Componente LoginScreen ---
 export function LoginScreen() {
   const navigate = useNavigate();
+  // Obtiene la función de login y el estado de carga del contexto de autenticación
+  const { login, isLoading: isAuthLoading } = useAuth();
+  // Estado local para el modal de recuperación y visibilidad de contraseña
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Estados para el formulario
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    showPassword: false,
-    rememberMe: false,
+  // --- Configuración de React Hook Form ---
+  const {
+    register, // Función para registrar inputs
+    handleSubmit, // Función para envolver el manejador de envío
+    formState: { errors, isSubmitting }, // Estado del formulario: errores de validación y si se está enviando
+    setError, // Función para establecer errores manualmente (ej. desde la API)
+  } = useForm<LoginFormInputs>({
+    resolver: zodResolver(loginSchema), // Usa Zod para validar
+    defaultValues: {
+      // Valores iniciales del formulario
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
   });
 
-  // Estado para el modal de recuperación
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  // --- Manejador de Envío del Formulario ---
+  // Se ejecuta SOLO si la validación de Zod es exitosa
+  const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
+    console.log("[LoginScreen] Datos del formulario validados:", {
+      email: data.email,
+      rememberMe: data.rememberMe,
+    }); // No loguear contraseña
 
-  // Usar el hook de autenticación directamente desde el contexto
-  const { login, isLoading, error } = useAuth();
-
-  // Manejador del envío del formulario
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    const credentials: LoginCredentials = {
+      email: data.email,
+      password: data.password,
+      rememberMe: data.rememberMe,
+    };
 
     try {
-      const result = await login({
-        email: formData.email,
-        password: formData.password,
-        rememberMe: formData.rememberMe,
-      });
+      // Llama a la función de login del contexto/servicio
+      const result = await login(credentials);
 
       if (result.success) {
         toast.success("Inicio de sesión exitoso");
-        // Navegar al dashboard usando navigate de react-router-dom
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true }); // Redirige al dashboard
+      } else {
+        // Si el login falla (credenciales incorrectas, etc.)
+        const errorMessage =
+          result.error || "Error de autenticación desconocido.";
+        toast.error(errorMessage);
+        // Opcional: Establecer errores en campos específicos si la API lo indica
+        if (
+          errorMessage.toLowerCase().includes("correo") ||
+          errorMessage.toLowerCase().includes("usuario")
+        ) {
+          setError("email", { type: "manual", message: errorMessage });
+        } else if (errorMessage.toLowerCase().includes("contraseña")) {
+          setError("password", { type: "manual", message: errorMessage });
+        } else {
+          // Error general no asociado a un campo específico
+          setError("root.serverError", {
+            type: "manual",
+            message: errorMessage,
+          });
+        }
       }
     } catch (error) {
-      console.error("Error durante el login:", error);
+      // Captura errores inesperados en la llamada a login
+      console.error(
+        "[LoginScreen] Error inesperado durante el proceso de login:",
+        error
+      );
+      toast.error("Ocurrió un error inesperado. Inténtalo de nuevo.");
+      setError("root.unexpectedError", {
+        type: "manual",
+        message: "Error inesperado en el servidor.",
+      });
     }
   };
 
-  // Actualizar datos del formulario
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  // Alternar visibilidad de la contraseña
-  const togglePasswordVisibility = () => {
-    setFormData((prev) => ({ ...prev, showPassword: !prev.showPassword }));
-  };
+  // Combina el estado de carga de la API con el estado de envío del formulario
+  const isProcessing = isAuthLoading || isSubmitting;
 
   return (
-    <div className="relative w-screen h-screen flex items-center bg-gradient-to-b from-blue-500 to-blue-700">
-      {/* Background con patrón de ondas */}
+    // --- Estructura JSX Principal (sin cambios) ---
+    <div className="relative w-screen h-screen flex items-center justify-center bg-gradient-to-b from-blue-500 to-blue-700 overflow-hidden">
+      {/* Fondo animado (sin cambios) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* SVG de ondas */}
         <svg
           className="absolute w-full h-full"
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="none"
           viewBox="0 0 1440 800"
         >
+          {/* Defs y Paths de las ondas (como estaban) */}
           <defs>
-            <style>
-              {`
-                .wave {
-                  position: absolute;
-                  left: 0;
-                  width: 200%;
-                  height: 100%;
-                  transform-origin: 0% 50%;
-                }
-                .wave-1 { fill: #3B82F6; opacity: 0.3; animation: wave 25s linear infinite; }
-                .wave-2 { fill: #2563EB; opacity: 0.4; animation: wave 20s linear infinite; }
-                .wave-3 { fill: #1D4ED8; opacity: 0.3; animation: wave 15s linear infinite; }
-                .wave-4 { fill: #1E40AF; opacity: 0.2; animation: wave 30s linear infinite; }
-                .wave-5 { fill: #1E3A8A; opacity: 0.1; animation: wave 35s linear infinite; }
-                @keyframes wave {
-                  0% { transform: translateX(0); }
-                  100% { transform: translateX(-50%); }
-                }
-              `}
-            </style>
+            <style>{`.wave{position:absolute;left:0;width:200%;height:100%;transform-origin:0% 50%;}.wave-1{fill:#3B82F6;opacity:0.3;animation:wave 25s linear infinite;}.wave-2{fill:#2563EB;opacity:0.4;animation:wave 20s linear infinite;}.wave-3{fill:#1D4ED8;opacity:0.3;animation:wave 15s linear infinite;}.wave-4{fill:#1E40AF;opacity:0.2;animation:wave 30s linear infinite;}.wave-5{fill:#1E3A8A;opacity:0.1;animation:wave 35s linear infinite;}@keyframes wave{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}`}</style>
           </defs>
           <path
             className="wave wave-1"
@@ -112,14 +162,14 @@ export function LoginScreen() {
         </svg>
       </div>
 
-      {/* Contenedor del formulario */}
-      <div className="relative z-10 bg-white shadow-lg rounded-lg p-8 w-96 m-8">
+      {/* Contenedor del Formulario */}
+      <div className="relative z-10 bg-white shadow-xl rounded-lg p-8 w-full max-w-md mx-4 my-8">
         <div className="flex flex-col items-center">
-          {/* Logo y nombre del sistema */}
+          {/* Logo y Título (sin cambios) */}
           <div className="mb-8 text-center logo-container">
             <img
               src="https://ho-tech.com/wp-content/uploads/2020/06/HoTech-Logo_Mesa-de-trabajo-1-copy.png"
-              alt="Hotel Management System"
+              alt="VIPS Presencia Logo"
               className="w-32 mx-auto mb-4 filter drop-shadow-lg"
             />
             <h1 className="text-2xl font-semibold text-gray-900">
@@ -127,14 +177,28 @@ export function LoginScreen() {
             </h1>
           </div>
 
-          {/* Formulario de login */}
-          <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
+          {/* --- Formulario Gestionado por RHF --- */}
+          {/* handleSubmit previene el envío si hay errores de validación */}
+          <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-5">
+            {/* Mostrar errores generales del servidor (no asociados a un campo) */}
+            {errors.root?.serverError && (
+              <div
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm"
+                role="alert"
+              >
+                {errors.root.serverError.message}
+              </div>
+            )}
+            {errors.root?.unexpectedError && (
+              <div
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm"
+                role="alert"
+              >
+                {errors.root.unexpectedError.message}
               </div>
             )}
 
+            {/* Campo Email */}
             <div>
               <label
                 htmlFor="email"
@@ -143,22 +207,39 @@ export function LoginScreen() {
                 Correo Electrónico
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                </span>
                 <input
                   id="email"
-                  name="email"
                   type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
-                  placeholder="Ingrese su correo electrónico"
+                  autoComplete="email"
+                  // Registra el input con RHF, Zod maneja la validación
+                  {...register("email")}
+                  className={`block w-full pl-10 pr-3 py-2 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                    errors.email
+                      ? "border-red-500 ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  }`}
+                  placeholder="usuario@ejemplo.com"
+                  aria-invalid={errors.email ? "true" : "false"}
+                  aria-describedby={errors.email ? "email-error" : undefined}
+                  disabled={isProcessing} // Deshabilitar mientras carga/envía
                 />
               </div>
+              {/* Mensaje de error específico para email */}
+              {errors.email && (
+                <p
+                  id="email-error"
+                  className="mt-1 text-xs text-red-600"
+                  role="alert"
+                >
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
+            {/* Campo Contraseña */}
             <div>
               <label
                 htmlFor="password"
@@ -167,121 +248,136 @@ export function LoginScreen() {
                 Contraseña
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                </span>
                 <input
                   id="password"
-                  name="password"
-                  type={formData.showPassword ? "text" : "password"}
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
-                  placeholder="Ingrese su contraseña"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  // Registra el input con RHF
+                  {...register("password")}
+                  className={`block w-full pl-10 pr-10 py-2 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                    errors.password
+                      ? "border-red-500 ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  }`}
+                  placeholder="Ingresa tu contraseña"
+                  aria-invalid={errors.password ? "true" : "false"}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
+                  disabled={isProcessing}
                 />
+                {/* Botón para mostrar/ocultar contraseña */}
                 <button
                   type="button"
-                  onClick={togglePasswordVisibility}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  disabled={isProcessing}
                 >
-                  {formData.showPassword ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="w-5 h-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" aria-hidden="true" />
                   ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="w-5 h-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
-                      />
-                    </svg>
+                    <Eye className="h-5 w-5" aria-hidden="true" />
                   )}
                 </button>
               </div>
+              {/* Mensaje de error específico para contraseña */}
+              {errors.password && (
+                <p
+                  id="password-error"
+                  className="mt-1 text-xs text-red-600"
+                  role="alert"
+                >
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
-            {/* Opción Recordar sesión */}
-            <div className="flex items-center">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="rememberMe"
-                className="ml-2 block text-sm text-gray-700"
-              >
-                Recordar mi sesión
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
+            {/* Opciones: Recordar Sesión y Olvidó Contraseña */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  // Registra el input con RHF
+                  {...register("rememberMe")}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                  disabled={isProcessing}
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="ml-2 block text-gray-700"
+                >
+                  Recordar mi sesión
+                </label>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowRecoveryModal(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+                onClick={() => !isProcessing && setShowRecoveryModal(true)} // Evita abrir modal si está procesando
+                className="font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isProcessing}
               >
                 ¿Olvidó su contraseña?
               </button>
             </div>
 
+            {/* Botón de Envío */}
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#1a56db] hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isProcessing} // Deshabilitado si está cargando o enviando
+              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#1a56db] hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {isProcessing ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Procesando...
+                </span>
               ) : (
                 "Ingresar"
               )}
             </button>
 
-            {/* Mensaje de prueba */}
-            <div className="text-center text-xs text-gray-500">
+            {/* Mensaje de prueba (Opcional, quitar en producción) */}
+            <div className="text-center text-xs text-gray-500 pt-2">
               <p>
-                Usar correo: <strong>admin@gmail.com</strong> y contraseña:{" "}
-                <strong>12345</strong> para pruebas
+                (Demo: <strong>admin@gmail.com</strong> / <strong>12345</strong>
+                )
               </p>
             </div>
           </form>
         </div>
 
-        {/* Nombre de la empresa */}
-        <div className="text-center mt-8">
+        {/* Nombre de la empresa (sin cambios) */}
+        <div className="text-center mt-6">
           <p className="text-sm text-gray-500">Ho-Tech del Caribe</p>
         </div>
       </div>
 
-      {/* Modal de recuperación de contraseña */}
+      {/* Modal de recuperación (sin cambios) */}
       {showRecoveryModal && (
         <RecoveryModal onClose={() => setShowRecoveryModal(false)} />
       )}
@@ -289,4 +385,4 @@ export function LoginScreen() {
   );
 }
 
-export default LoginScreen;
+export default LoginScreen; // Exportación por defecto si es necesario
