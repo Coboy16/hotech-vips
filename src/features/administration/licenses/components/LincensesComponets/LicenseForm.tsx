@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller } from "react-hook-form";
 import {
   X,
   Save,
@@ -14,13 +12,14 @@ import {
   FileText,
   AlertCircle,
 } from "lucide-react";
+
 import { License } from "../../../../../model/license";
-import {
-  LicenseFormData,
-  createLicenseSchema,
-} from "../../schemas/licenseSchema";
+import { LicenseFormData } from "../../schemas/licenseSchema";
 import { ModuleSelector } from "./ModuleSelector";
-import { formatDateForInput } from "../../utils/adapters";
+
+// Hooks personalizados
+import { useLicenseForm } from "../../hooks/licenseFrom/useLicenseForm";
+import { useFormTabs } from "../../hooks/userFrom/useFormTabs";
 
 interface LicenseFormProps {
   license?: License | null;
@@ -35,112 +34,23 @@ export function LicenseForm({
   onSave,
   isLoading = false,
 }: LicenseFormProps) {
-  // Estado para manejar las pestañas
-  const [activeTab, setActiveTab] = useState<"basic" | "contact">("basic");
+  // Uso del hook para gestionar pestañas
+  const { activeTab, setActiveTab } = useFormTabs<"basic" | "contact">("basic");
 
-  // React Hook Form setup
+  // Uso del hook para gestionar el formulario
   const {
     register,
-    handleSubmit,
     control,
-    formState: { errors },
-    reset,
-    watch,
-    formState,
-  } = useForm<LicenseFormData>({
-    resolver: zodResolver(createLicenseSchema),
-    mode: "onChange",
-    defaultValues: {
-      companyName: license?.companyName || "",
-      rnc: license?.rnc || "",
-      expirationDate:
-        formatDateForInput(license?.expirationDate) ||
-        formatDateForInput(new Date()),
-      allowedCompanies: license?.allowedCompanies || 1,
-      allowedEmployees: license?.allowedEmployees || 100,
-      modules: license?.modules || [],
-      contactInfo: {
-        name: license?.contactInfo?.name || "",
-        email: license?.contactInfo?.email || "",
-        phone: license?.contactInfo?.phone || "",
-      },
-      status: license?.status || "active",
-      notes: license?.notes || "",
-    },
+    errors,
+    handleSubmit,
+    watchedModules,
+    getDaysUntilExpiration,
+    getExpirationClass,
+  } = useLicenseForm({
+    license,
+    onSave,
+    isLoading,
   });
-
-  // Debug: Muestra el estado del formulario
-  console.log("Form state:", {
-    isDirty: formState.isDirty,
-    isValid: formState.isValid,
-    errors: formState.errors,
-  });
-
-  // Observar la fecha de expiración para mostrar días restantes
-  const watchedExpirationDate = watch("expirationDate");
-
-  // Resetear el formulario si la licencia inicial cambia
-  useEffect(() => {
-    if (license) {
-      reset({
-        companyName: license.companyName,
-        rnc: license.rnc,
-        expirationDate: formatDateForInput(license.expirationDate),
-        allowedCompanies: license.allowedCompanies,
-        allowedEmployees: license.allowedEmployees,
-        modules: license.modules,
-        contactInfo: {
-          name: license.contactInfo.name,
-          email: license.contactInfo.email,
-          phone: license.contactInfo.phone,
-        },
-        status: license.status,
-        notes: license.notes || "",
-      });
-    } else {
-      reset({
-        companyName: "",
-        rnc: "",
-        expirationDate: formatDateForInput(new Date()),
-        allowedCompanies: 1,
-        allowedEmployees: 100,
-        modules: [],
-        contactInfo: { name: "", email: "", phone: "" },
-        status: "active",
-        notes: "",
-      });
-    }
-  }, [license, reset]);
-
-  const handleFormSubmit = (data: LicenseFormData) => {
-    console.log("Datos del formulario validados:", data);
-    onSave(data);
-  };
-
-  // Calcular días hasta vencimiento para el indicador visual
-  const getDaysUntilExpiration = () => {
-    if (!watchedExpirationDate) return null;
-    try {
-      const expiration = new Date(watchedExpirationDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      expiration.setHours(0, 0, 0, 0);
-      const diffTime = expiration.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays;
-    } catch {
-      return null;
-    }
-  };
-
-  const getExpirationClass = () => {
-    const days = getDaysUntilExpiration();
-    if (days === null) return "";
-    if (days <= 0) return "text-red-600 font-medium";
-    if (days <= 30) return "text-red-500 font-medium";
-    if (days <= 90) return "text-yellow-500 font-medium";
-    return "text-green-500 font-medium";
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -179,6 +89,7 @@ export function LicenseForm({
                   : "text-gray-500 hover:text-blue-500"
               }`}
               onClick={() => setActiveTab("basic")}
+              type="button"
             >
               <Building2 className="w-5 h-5" />
               <span>Información Básica</span>
@@ -190,6 +101,7 @@ export function LicenseForm({
                   : "text-gray-500 hover:text-blue-500"
               }`}
               onClick={() => setActiveTab("contact")}
+              type="button"
             >
               <User className="w-5 h-5" />
               <span>Información de Contacto</span>
@@ -197,10 +109,7 @@ export function LicenseForm({
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit(handleFormSubmit)}
-          className="p-6 overflow-y-auto flex-1"
-        >
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
           {/* Información Básica */}
           <div className={activeTab === "basic" ? "block" : "hidden"}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -525,7 +434,7 @@ export function LicenseForm({
                         {errors.modules.message}
                       </p>
                     )}
-                    {watch("modules")?.length === 0 && (
+                    {watchedModules?.length === 0 && (
                       <div className="flex items-center text-yellow-600 mt-3">
                         <AlertCircle className="w-5 h-5 mr-2" />
                         <span className="text-sm">
@@ -542,7 +451,7 @@ export function LicenseForm({
           {/* Botones de acción */}
           <div className="mt-8 pt-5 border-t border-gray-200 flex justify-between">
             <div>
-              {watch("modules")?.length === 0 && (
+              {watchedModules?.length === 0 && (
                 <div className="flex items-center text-yellow-600">
                   <AlertCircle className="w-5 h-5 mr-2" />
                   <span className="text-sm">
