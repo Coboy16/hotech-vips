@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller } from "react-hook-form";
 import {
   X,
   Save,
@@ -17,89 +15,19 @@ import {
   Key,
   Network,
 } from "lucide-react";
-import {
-  userFormValidationSchema,
-  UserFormData,
-  StructureType,
-} from "../../schemas/userSchema";
+
+import { UserFormData, StructureType } from "../../schemas/userSchema";
 import { StructureSelector } from "./StructureSelector";
 import { RoleSelector } from "../LincensesComponets/RoleSelector";
 import UserModuleSelector, {
   AvailableModuleOption,
 } from "./UserModuleSelector";
-import {
-  LicenseInfoForUserForm,
-  ApiStructureTreeResponse, // Ahora este tipo representa el OBJETO DENTRO de data[0]
-} from "../../../../../model";
-import { structureService } from "../../services/structureService";
+import { LicenseInfoForUserForm } from "../../../../../model";
 
-// --- Helper Functions ---
-
-const generateRandomPassword = (length = 12) => {
-  const charset =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
-};
-
-// **REVISADO:** Función para determinar tipos disponibles.
-// Ahora asume que la existencia del objeto `tree` implica que 'company' está disponible.
-const getAvailableStructureTypes = (
-  tree: ApiStructureTreeResponse | null
-): StructureType[] => {
-  const availableTypes = new Set<StructureType>();
-
-  // Si el árbol (objeto de licencia con relaciones) existe, 'company' está disponible.
-  if (tree?.license_id) {
-    availableTypes.add("company");
-  } else {
-    return []; // Si no hay árbol, no hay tipos.
-  }
-
-  // Revisar el array 'companies' DENTRO del árbol para tipos anidados
-  tree.companies?.forEach((company) => {
-    // Iterar incluso si está vacío, no causa error
-    if (company.branches && company.branches.length > 0) {
-      availableTypes.add("sede");
-      company.branches.forEach((branch) => {
-        if (branch.departments && branch.departments.length > 0) {
-          availableTypes.add("department");
-          branch.departments.forEach((department) => {
-            if (department.sections && department.sections.length > 0) {
-              availableTypes.add("section");
-              department.sections.forEach((section) => {
-                if (section.units && section.units.length > 0) {
-                  availableTypes.add("unit");
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-  });
-
-  const order: StructureType[] = [
-    "company",
-    "sede",
-    "department",
-    "section",
-    "unit",
-  ];
-  return order.filter((type) => availableTypes.has(type));
-};
-
-const structureTypeLabels: Record<StructureType, string> = {
-  company: "Compañía",
-  sede: "Sede",
-  department: "Departamento",
-  section: "Sección",
-  unit: "Unidad",
-};
+// Importar hooks personalizados
+import { useUserForm } from "../../hooks/userFrom/useUserForm";
+import { useStructureTree } from "../../hooks/userFrom/useStructureTree";
+import { useFormTabs } from "../../hooks/userFrom/useFormTabs";
 
 interface UserFormProps {
   user?: any | null;
@@ -116,198 +44,50 @@ export function UserForm({
   licenseInfo,
   availableModules,
 }: UserFormProps) {
-  const [activeTab, setActiveTab] = useState<"basic" | "access" | "structures">(
-    "basic"
-  );
-  const [isSavingInternal, setIsSavingInternal] = useState(false);
-  const [structureTree, setStructureTree] =
-    useState<ApiStructureTreeResponse | null>(null);
-  const [isTreeLoading, setIsTreeLoading] = useState(true);
-  const [treeError, setTreeError] = useState<string | null>(null);
+  // Usar hook de pestañas
+  const { activeTab, setActiveTab } = useFormTabs<
+    "basic" | "access" | "structures"
+  >("basic");
 
+  // Usar hook de formulario
   const {
     register,
-    handleSubmit,
     control,
-    formState: { errors, isValid },
-    watch,
+    errors,
+    isValid,
+    touchedFields,
+    watchedStructureType,
+    watchAssignLater,
+    handleSubmit,
+    handleGeneratePassword,
+    isSavingInternal,
     setValue,
-    reset,
     trigger,
-  } = useForm<UserFormData>({
-    resolver: zodResolver(userFormValidationSchema),
-    mode: "onChange", // Validar al cambiar, importante para selects dependientes
-    defaultValues: user
-      ? undefined
-      : {
-          usua_nomb: "",
-          usua_corr: "",
-          usua_noco: "",
-          password: "",
-          usua_stat: true,
-          rol_id: "",
-          structure_type: "",
-          structure_id: "",
-          assignStructureLater: false,
-          userPermissions: [],
-          company_license_id: licenseInfo.id,
-          usua_fein: undefined,
-          usua_fevc: undefined,
-          usua_feve: undefined,
-        },
+  } = useUserForm({
+    user,
+    licenseInfo,
+    onSave,
   });
 
-  // Cargar Árbol de Estructura
-  useEffect(() => {
-    let isMounted = true; // Flag para evitar setear estado si el componente se desmonta
-    const fetchTree = async () => {
-      if (!licenseInfo.id) {
-        setIsTreeLoading(false);
-        setTreeError("ID de Licencia no disponible.");
-        return;
-      }
-      console.log(
-        `[UserForm] Iniciando carga de árbol para licencia: ${licenseInfo.id}`
-      );
-      setIsTreeLoading(true);
-      setTreeError(null);
-      setStructureTree(null);
-      try {
-        // structureService.getStructureTree ahora devuelve el objeto directamente (o null)
-        const treeData = await structureService.getStructureTree(
-          licenseInfo.id
-        );
-        console.log("[UserForm] Árbol recibido:", treeData);
-        if (isMounted) {
-          setStructureTree(treeData); // Guardar el objeto (o null)
-
-          // Lógica para setear tipo por defecto DESPUÉS de cargar el árbol
-          if (!user && treeData) {
-            // Solo en creación y si el árbol cargó
-            const availableTypes = getAvailableStructureTypes(treeData);
-            console.log(
-              "[UserForm] Tipos disponibles detectados:",
-              availableTypes
-            );
-            if (availableTypes.length === 1) {
-              console.log(
-                `[UserForm] Estableciendo tipo por defecto a: ${availableTypes[0]}`
-              );
-              // Usar setValue para actualizar el form state
-              setValue("structure_type", availableTypes[0], {
-                shouldValidate: true,
-              });
-              // Si el único tipo es company, pre-seleccionar su ID (license_id)
-              if (availableTypes[0] === "company") {
-                setValue("structure_id", treeData.license_id, {
-                  shouldValidate: true,
-                });
-                console.log(
-                  `[UserForm] Pre-seleccionando ID de compañía: ${treeData.license_id}`
-                );
-              }
-            } else {
-              console.log(
-                "[UserForm] Múltiples o ningún tipo disponible, requiere selección."
-              );
-              setValue("structure_type", "", { shouldValidate: true }); // Forzar selección
-              setValue("structure_id", "", { shouldValidate: false }); // Limpiar ID
-            }
-          } else if (!user && !treeData) {
-            // Caso: Creación pero el árbol vino null o vacío
-            console.warn(
-              "[UserForm] Árbol de estructura no encontrado o vacío para la licencia."
-            );
-            setValue("structure_type", "", { shouldValidate: true });
-            setValue("structure_id", "", { shouldValidate: false });
-          }
-          // Trigger validation after setting default type/id
-          trigger();
-        }
-      } catch (err) {
-        console.error("[UserForm] Error al cargar árbol de estructura:", err);
-        if (isMounted) {
-          setTreeError("No se pudo cargar la estructura organizacional.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsTreeLoading(false);
-          console.log("[UserForm] Carga de árbol finalizada.");
-        }
-      }
-    };
-
-    fetchTree();
-
-    return () => {
-      isMounted = false; // Cleanup: marcar como desmontado
-    };
-    // Dependencias: Ejecutar solo cuando cambie el ID de la licencia
-  }, [licenseInfo.id, user, setValue, trigger]); // Añadir trigger
-
-  // Resetear/Llenar formulario para edición
-  useEffect(() => {
-    if (user) {
-      console.warn(
-        "Modo edición: Adaptador apiUserToFormData necesita revisión."
-      );
-      const userStructure = user.userStructures?.[0] || {
-        structure_id: user.structure_id,
-        structure_type: user.structure_type,
-      };
-      reset({
-        ...user, // Cuidado con sobrescribir IDs/tipos si el árbol no ha cargado
-        password: "",
-        userPermissions:
-          user.userPermissions
-            ?.map((p: any) => p.module?.module_id)
-            .filter(Boolean) || [],
-        company_license_id: user.company_license_id || licenseInfo.id,
-        // Inicializar con datos del usuario, pero pueden ser sobreescritos por la carga del árbol si es necesario validar
-        structure_type: (userStructure?.structure_type as StructureType) || "",
-        structure_id: userStructure?.structure_id || "",
-        assignStructureLater: !userStructure?.structure_id,
-      });
-    }
-    // No resetear en modo creación aquí para no interferir con la carga del árbol
-  }, [user, reset, licenseInfo.id]);
-
-  const handleFormSubmit = async (data: UserFormData) => {
-    console.log("Datos del formulario validados ANTES de enviar:", data);
-    setIsSavingInternal(true);
-    try {
-      await onSave(data);
-    } catch (error) {
-      console.error("Error en UserForm al llamar onSave:", error);
-    } finally {
-      setIsSavingInternal(false);
-    }
-  };
-
-  const handleGeneratePassword = () => {
-    const newPassword = generateRandomPassword();
-    setValue("password", newPassword, { shouldValidate: true });
-  };
-
-  const watchedStructureType = watch("structure_type") as StructureType | "";
-  const watchAssignLater = watch("assignStructureLater");
-
-  // Recalcular tipos disponibles memoizado
-  const availableTypes = useMemo(
-    () => getAvailableStructureTypes(structureTree),
-    [structureTree]
-  );
-
-  // Re-validar al cambiar assignStructureLater
-  useEffect(() => {
-    trigger(); // Revalida todo el formulario, incluyendo las reglas de superRefine
-  }, [watchAssignLater, trigger]);
+  // Usar hook de estructura
+  const {
+    structureTree,
+    isTreeLoading,
+    treeError,
+    availableTypes,
+    structureTypeLabels,
+  } = useStructureTree({
+    licenseId: licenseInfo.id,
+    user,
+    setValue,
+    trigger,
+  });
 
   // --- Renderizado ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl overflow-hidden max-h-[95vh] w-full max-w-4xl flex flex-col my-auto">
-        {/* Encabezado y Pestañas (sin cambios visuales) */}
+        {/* Encabezado */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-600 p-6 text-white flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -331,6 +111,8 @@ export function UserForm({
               : `Complete los campos para crear un nuevo usuario dentro de la licencia ${licenseInfo.name}.`}
           </p>
         </div>
+
+        {/* Pestañas */}
         <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0">
           <div className="flex">
             <button
@@ -355,7 +137,7 @@ export function UserForm({
               type="button"
             >
               <UserCog className="w-4 h-4" />
-              <span>Acceso y Permisos</span>
+              <span>Acceso</span>
             </button>
             <button
               className={`py-3 px-6 text-sm font-medium flex items-center space-x-2 ${
@@ -372,17 +154,13 @@ export function UserForm({
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit(handleFormSubmit)}
-          className="p-6 overflow-y-auto flex-1"
-        >
-          {/* Pestaña Info Personal (sin cambios) */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
+          {/* Pestaña Info Personal */}
           <div
             className={`${
               activeTab === "basic" ? "block" : "hidden"
             } space-y-6`}
           >
-            {/* ... Contenido ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Columna Izquierda */}
               <div className="space-y-4">
@@ -403,13 +181,15 @@ export function UserForm({
                           type="text"
                           {...register("usua_nomb")}
                           className={`input-field pl-10 ${
-                            errors.usua_nomb ? "input-error" : ""
+                            errors.usua_nomb && touchedFields.usua_nomb
+                              ? "input-error"
+                              : ""
                           }`}
                           placeholder="Ingrese nombre completo"
                           disabled={isSavingInternal}
                         />
                       </div>
-                      {errors.usua_nomb && (
+                      {errors.usua_nomb && touchedFields.usua_nomb && (
                         <p className="error-message">
                           {errors.usua_nomb.message}
                         </p>
@@ -427,13 +207,15 @@ export function UserForm({
                           type="email"
                           {...register("usua_corr")}
                           className={`input-field pl-10 ${
-                            errors.usua_corr ? "input-error" : ""
+                            errors.usua_corr && touchedFields.usua_corr
+                              ? "input-error"
+                              : ""
                           }`}
                           placeholder="correo@ejemplo.com"
                           disabled={isSavingInternal}
                         />
                       </div>
-                      {errors.usua_corr && (
+                      {errors.usua_corr && touchedFields.usua_corr && (
                         <p className="error-message">
                           {errors.usua_corr.message}
                         </p>
@@ -450,13 +232,15 @@ export function UserForm({
                           type="tel"
                           {...register("usua_noco")}
                           className={`input-field pl-10 ${
-                            errors.usua_noco ? "input-error" : ""
+                            errors.usua_noco && touchedFields.usua_noco
+                              ? "input-error"
+                              : ""
                           }`}
                           placeholder="Ingrese número telefónico"
                           disabled={isSavingInternal}
                         />
                       </div>
-                      {errors.usua_noco && (
+                      {errors.usua_noco && touchedFields.usua_noco && (
                         <p className="error-message">
                           {errors.usua_noco.message}
                         </p>
@@ -465,6 +249,7 @@ export function UserForm({
                   </div>
                 </div>
               </div>
+
               {/* Columna Derecha */}
               <div className="space-y-4">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -491,7 +276,9 @@ export function UserForm({
                             type="password"
                             {...register("password")}
                             className={`input-field pl-10 ${
-                              errors.password ? "input-error" : ""
+                              errors.password && touchedFields.password
+                                ? "input-error"
+                                : ""
                             }`}
                             placeholder={
                               user
@@ -512,7 +299,7 @@ export function UserForm({
                           <RefreshCw className="w-4 h-4" />
                         </button>
                       </div>
-                      {errors.password && (
+                      {errors.password && touchedFields.password && (
                         <p className="error-message">
                           {errors.password.message}
                         </p>
@@ -565,7 +352,7 @@ export function UserForm({
                           </div>
                         )}
                       />
-                      {errors.usua_stat && (
+                      {errors.usua_stat && touchedFields.usua_stat && (
                         <p className="error-message">
                           {errors.usua_stat.message}
                         </p>
@@ -577,13 +364,12 @@ export function UserForm({
             </div>
           </div>
 
-          {/* Pestaña Acceso y Permisos (sin cambios) */}
+          {/* Pestaña Acceso y Permisos */}
           <div
             className={`${
               activeTab === "access" ? "block" : "hidden"
             } space-y-6`}
           >
-            {/* ... Contenido ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* --- Columna Rol --- */}
               <div className="space-y-4">
@@ -600,12 +386,14 @@ export function UserForm({
                         onChange={(roleId) => field.onChange(roleId)}
                         disabled={isSavingInternal}
                         className={`input-field ${
-                          errors.rol_id ? "input-error" : ""
+                          errors.rol_id && touchedFields.rol_id
+                            ? "input-error"
+                            : ""
                         }`}
                       />
                     )}
                   />
-                  {errors.rol_id && (
+                  {errors.rol_id && touchedFields.rol_id && (
                     <p className="error-message">{errors.rol_id.message}</p>
                   )}
                 </div>
@@ -616,7 +404,7 @@ export function UserForm({
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                   <h3 className="text-lg font-medium text-blue-800 flex items-center">
                     <Key className="w-5 h-5 mr-2" />
-                    Permisos Específicos
+                    Acceso a Módulos
                   </h3>
                   <div className="mt-4">
                     <Controller
@@ -633,20 +421,21 @@ export function UserForm({
                         />
                       )}
                     />
-                    {errors.userPermissions && (
-                      <p className="error-message">
-                        {typeof errors.userPermissions.message === "string"
-                          ? errors.userPermissions.message
-                          : "Error en la selección de permisos."}
-                      </p>
-                    )}
+                    {errors.userPermissions &&
+                      touchedFields.userPermissions && (
+                        <p className="error-message">
+                          {typeof errors.userPermissions.message === "string"
+                            ? errors.userPermissions.message
+                            : "Error en la selección de permisos."}
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ----- Pestaña Estructuras (MODIFICADA) ----- */}
+          {/* Pestaña Estructuras */}
           <div
             className={`${
               activeTab === "structures" ? "block" : "hidden"
@@ -666,9 +455,7 @@ export function UserForm({
               </div>
             )}
 
-            {/* Contenido de la pestaña (solo si no hay error) */}
-            {/* Renderizar incluso si isTreeLoading es true para que los selects existan pero estén disabled */}
-            {/* {!treeError && ( */}
+            {/* Contenido de la pestaña */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Columna Izquierda: Info Licencia y TIPO de Estructura */}
               <div className="space-y-4">
@@ -695,14 +482,15 @@ export function UserForm({
                         type="hidden"
                         {...register("company_license_id")}
                       />
-                      {errors.company_license_id && (
-                        <p className="error-message">
-                          {errors.company_license_id.message}
-                        </p>
-                      )}
+                      {errors.company_license_id &&
+                        touchedFields.company_license_id && (
+                          <p className="error-message">
+                            {errors.company_license_id.message}
+                          </p>
+                        )}
                     </div>
 
-                    {/* Selector de TIPO de estructura (Dinámico) */}
+                    {/* Selector de TIPO de estructura */}
                     <div>
                       <label className="label-form">
                         Tipo de estructura
@@ -718,8 +506,10 @@ export function UserForm({
                             {...field}
                             value={field.value || ""} // Controlado
                             className={`input-field ${
-                              // Mostrar error si existe Y no se asigna más tarde
-                              errors.structure_type && !watchAssignLater
+                              // Mostrar error si existe Y no se asigna más tarde Y el campo fue tocado
+                              errors.structure_type &&
+                              !watchAssignLater &&
+                              touchedFields.structure_type
                                 ? "input-error"
                                 : ""
                             }`}
@@ -740,7 +530,7 @@ export function UserForm({
                               );
                               field.onChange(newType);
                               setValue("structure_id", "", {
-                                shouldValidate: !watchAssignLater,
+                                shouldValidate: false,
                               });
                               // Si el nuevo tipo es 'company', auto-seleccionar su ID (license_id)
                               if (
@@ -750,7 +540,7 @@ export function UserForm({
                                 setValue(
                                   "structure_id",
                                   structureTree.license_id,
-                                  { shouldValidate: !watchAssignLater }
+                                  { shouldValidate: false }
                                 );
                                 console.log(
                                   `[UserForm] Auto-seleccionando ID compañía: ${structureTree.license_id}`
@@ -775,11 +565,13 @@ export function UserForm({
                           </select>
                         )}
                       />
-                      {errors.structure_type && !watchAssignLater && (
-                        <p className="error-message">
-                          {errors.structure_type.message}
-                        </p>
-                      )}
+                      {errors.structure_type &&
+                        !watchAssignLater &&
+                        touchedFields.structure_type && (
+                          <p className="error-message">
+                            {errors.structure_type.message}
+                          </p>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -803,8 +595,6 @@ export function UserForm({
                         )}
                       </label>
 
-                      {/* El div wrapper es menos crucial aquí si el disabled del select funciona */}
-                      {/* <div className={`${watchAssignLater || !watchedStructureType || isTreeLoading || !!treeError ? "opacity-50 cursor-not-allowed" : ""}`}> */}
                       <Controller
                         name="structure_id"
                         control={control}
@@ -829,20 +619,23 @@ export function UserForm({
                               !!treeError
                             }
                             className={
-                              // Mostrar error si existe Y no se asigna más tarde
-                              errors.structure_id && !watchAssignLater
+                              // Mostrar error si existe Y no se asigna más tarde Y el campo fue tocado
+                              errors.structure_id &&
+                              !watchAssignLater &&
+                              touchedFields.structure_id
                                 ? "input-error"
                                 : ""
                             }
                           />
                         )}
                       />
-                      {/* </div> */}
-                      {errors.structure_id && !watchAssignLater && (
-                        <p className="error-message">
-                          {errors.structure_id.message}
-                        </p>
-                      )}
+                      {errors.structure_id &&
+                        !watchAssignLater &&
+                        touchedFields.structure_id && (
+                          <p className="error-message">
+                            {errors.structure_id.message}
+                          </p>
+                        )}
                       {/* Mensaje si no se ha seleccionado TIPO */}
                       {!watchedStructureType &&
                         !watchAssignLater &&
@@ -880,10 +673,7 @@ export function UserForm({
                                 trigger();
                               }}
                               className="sr-only peer"
-                              // Deshabilitar si carga árbol o hay error? Puede ser confuso. Mejor permitir cambiarlo.
-                              disabled={
-                                isSavingInternal /*|| isTreeLoading || !!treeError*/
-                              }
+                              disabled={isSavingInternal}
                             />
                             <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                             <span className="ms-3 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -897,7 +687,6 @@ export function UserForm({
                 </div>
               </div>
             </div>
-            {/* )} Fin del condicional !treeError (removido para mostrar disabled selects) */}
           </div>
 
           {/* Botones de acción */}
