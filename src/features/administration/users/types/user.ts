@@ -56,6 +56,9 @@ export interface ApiUser {
     created_at: string;
     updated_at: string;
   }>;
+  userStructures?: Array<{
+    structure_type: string;
+  }>;
 }
 
 export interface CreateUserDto {
