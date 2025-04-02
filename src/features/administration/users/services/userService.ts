@@ -1,7 +1,5 @@
-import { apiClient } from "../../../../services/api";
+import { makeRequest } from "../../../../services/api";
 import { USER_ENDPOINTS } from "../../../../services/api/endpoints";
-import { tokenStorage } from "../../../auth/utils";
-
 import {
   ApiUser,
   CreateUserDto,
@@ -21,28 +19,26 @@ export const userService = {
    * Obtiene todos los usuarios
    */
   async getAll(): Promise<User[]> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return [];
-    }
-    try {
-      console.log("GET request to:", USER_ENDPOINTS.BASE);
-      const response = await apiClient.get<UserResponse>(USER_ENDPOINTS.BASE, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      console.log("Response:", response);
+    console.log("[userService] Solicitando todos los usuarios...");
 
-      if (response.statusCode === 200 && Array.isArray(response.data)) {
-        return response.data.map(transformApiUserToUser);
-      }
+    const response = await makeRequest<UserResponse>(
+      "get",
+      USER_ENDPOINTS.BASE
+    );
 
-      return [];
-    } catch (error) {
-      console.error("Error al cargar todos los usuarios:", error);
-      return [];
+    if (
+      response &&
+      response.statusCode === 200 &&
+      Array.isArray(response.data)
+    ) {
+      console.log(`[userService] ${response.data.length} usuarios obtenidos.`);
+      return response.data.map(transformApiUserToUser);
+    } else {
+      console.error(
+        "[userService] Error al obtener todos los usuarios:",
+        response?.message || "Respuesta inválida"
+      );
+      return []; // Devuelve array vacío en caso de error
     }
   },
 
@@ -50,30 +46,25 @@ export const userService = {
    * Obtiene un usuario por su ID
    */
   async getById(id: string): Promise<User | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return null;
-    }
-    try {
-      console.log("GET request to:", USER_ENDPOINTS.DETAIL(id));
-      const response = await apiClient.get<UserResponse>(
-        USER_ENDPOINTS.DETAIL(id),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+    console.log(`[userService] Solicitando usuario con ID: ${id}`);
+
+    const response = await makeRequest<UserResponse>(
+      "get",
+      USER_ENDPOINTS.DETAIL(id)
+    );
+
+    if (
+      response &&
+      response.statusCode === 200 &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[userService] Usuario ${id} obtenido.`);
+      return transformApiUserToUser(response.data as unknown as ApiUser);
+    } else {
+      console.error(
+        `[userService] Error al obtener usuario ${id}:`,
+        response?.message || "Respuesta inválida o no encontrada"
       );
-      console.log("Response:", response);
-
-      if (response.statusCode === 200 && !Array.isArray(response.data)) {
-        return transformApiUserToUser(response.data as ApiUser);
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error fetching user:", error);
       return null;
     }
   },
@@ -82,36 +73,26 @@ export const userService = {
    * Crea un nuevo usuario
    */
   async create(userData: CreateUserDto): Promise<User | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return null;
-    }
-    try {
-      console.log(
-        "POST request to:",
-        USER_ENDPOINTS.BASE,
-        "with data:",
-        userData
-      );
-      const response = await apiClient.post<UserResponse>(
-        USER_ENDPOINTS.BASE,
-        userData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Response:", response);
+    console.log("[userService] Creando nuevo usuario...");
 
-      if (response.statusCode === 201 && !Array.isArray(response.data)) {
-        return transformApiUserToUser(response.data as ApiUser);
-      }
+    const response = await makeRequest<UserResponse>(
+      "post",
+      USER_ENDPOINTS.BASE,
+      userData
+    );
 
-      return null;
-    } catch (error) {
-      console.error("Error creating user:", error);
+    if (
+      response &&
+      response.statusCode === 201 &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[userService] Usuario creado con éxito.`);
+      return transformApiUserToUser(response.data as unknown as ApiUser);
+    } else {
+      console.error(
+        "[userService] Error al crear usuario:",
+        response?.message || "Respuesta inválida"
+      );
       return null;
     }
   },
@@ -120,36 +101,26 @@ export const userService = {
    * Actualiza un usuario existente
    */
   async update(id: string, userData: UpdateUserDto): Promise<User | null> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return null;
-    }
-    try {
-      console.log(
-        "PUT request to:",
-        USER_ENDPOINTS.UPDATE(id),
-        "with data:",
-        userData
-      );
-      const response = await apiClient.put<UserResponse>(
-        USER_ENDPOINTS.UPDATE(id),
-        userData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Response:", response);
+    console.log(`[userService] Actualizando usuario con ID: ${id}`);
 
-      if (response.statusCode === 200 && !Array.isArray(response.data)) {
-        return transformApiUserToUser(response.data as ApiUser);
-      }
+    const response = await makeRequest<UserResponse>(
+      "put",
+      USER_ENDPOINTS.UPDATE(id),
+      userData
+    );
 
-      return null;
-    } catch (error) {
-      console.error("Error updating user:", error);
+    if (
+      response &&
+      response.statusCode === 200 &&
+      !Array.isArray(response.data)
+    ) {
+      console.log(`[userService] Usuario ${id} actualizado.`);
+      return transformApiUserToUser(response.data as unknown as ApiUser);
+    } else {
+      console.error(
+        `[userService] Error al actualizar usuario ${id}:`,
+        response?.message || "Respuesta inválida"
+      );
       return null;
     }
   },
@@ -161,32 +132,24 @@ export const userService = {
     id: string,
     passwordData: UpdatePasswordDto
   ): Promise<boolean> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return false;
-    }
-    try {
-      console.log(
-        "PUT request to:",
-        USER_ENDPOINTS.UPDATE_PASSWORD(id),
-        "with data:",
-        passwordData
-      );
-      const response = await apiClient.put<UserResponse>(
-        USER_ENDPOINTS.UPDATE_PASSWORD(id),
-        passwordData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Response:", response);
+    console.log(
+      `[userService] Actualizando contraseña del usuario con ID: ${id}`
+    );
 
-      return response.statusCode === 200;
-    } catch (error) {
-      console.error("Error updating password:", error);
+    const response = await makeRequest<UserResponse>(
+      "put",
+      USER_ENDPOINTS.UPDATE_PASSWORD(id),
+      passwordData
+    );
+
+    if (response && response.statusCode === 200) {
+      console.log(`[userService] Contraseña del usuario ${id} actualizada.`);
+      return true;
+    } else {
+      console.error(
+        `[userService] Error al actualizar contraseña del usuario ${id}:`,
+        response?.message || "Respuesta inválida"
+      );
       return false;
     }
   },
@@ -195,29 +158,23 @@ export const userService = {
    * Elimina un usuario
    */
   async delete(id: string, deleteData?: DeleteUserDto): Promise<boolean> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return false;
-    }
-    try {
-      console.log("DELETE request to:", USER_ENDPOINTS.DELETE(id));
+    console.log(`[userService] Eliminando usuario con ID: ${id}`);
 
-      // Corregido: usar el parámetro options correctamente
-      const response = await apiClient.delete<UserResponse>(
-        USER_ENDPOINTS.DELETE(id),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          params: deleteData ? { ...deleteData } : undefined,
-        }
+    const response = await makeRequest<UserResponse>(
+      "delete",
+      USER_ENDPOINTS.DELETE(id),
+      undefined,
+      deleteData // Pasando deleteData como parámetros de consulta
+    );
+
+    if (response && response.statusCode === 200) {
+      console.log(`[userService] Usuario ${id} eliminado.`);
+      return true;
+    } else {
+      console.error(
+        `[userService] Error al eliminar usuario ${id}:`,
+        response?.message || "Respuesta inválida"
       );
-      console.log("Response:", response);
-
-      return response.statusCode === 200;
-    } catch (error) {
-      console.error("Error deleting user:", error);
       return false;
     }
   },
@@ -226,26 +183,21 @@ export const userService = {
    * Elimina un usuario por email
    */
   async deleteByEmail(email: string): Promise<boolean> {
-    const token = tokenStorage.getToken();
-    if (!token) {
-      console.error("No hay token de autenticación disponible");
-      return false;
-    }
-    try {
-      console.log("DELETE request to:", USER_ENDPOINTS.DELETE_BY_EMAIL(email));
-      const response = await apiClient.delete<UserResponse>(
-        USER_ENDPOINTS.DELETE_BY_EMAIL(email),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Response:", response);
+    console.log(`[userService] Eliminando usuario con email: ${email}`);
 
-      return response.statusCode === 200;
-    } catch (error) {
-      console.error("Error deleting user by email:", error);
+    const response = await makeRequest<UserResponse>(
+      "delete",
+      USER_ENDPOINTS.DELETE_BY_EMAIL(email)
+    );
+
+    if (response && response.statusCode === 200) {
+      console.log(`[userService] Usuario con email ${email} eliminado.`);
+      return true;
+    } else {
+      console.error(
+        `[userService] Error al eliminar usuario con email ${email}:`,
+        response?.message || "Respuesta inválida"
+      );
       return false;
     }
   },
