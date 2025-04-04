@@ -2,26 +2,28 @@ import { menuItems } from "../../components/layout/sidebar/config/menuItems";
 import { MenuItem } from "../../components/layout/sidebar/types";
 
 /**
- * Encuentra el permiso de módulo asociado a una ruta
+ * Encuentra el permiso de módulo asociado a una ruta específica.
+ * Compara paths normalizados (sin / al final).
  */
 export const findModulePermissionForPath = (
   path: string,
-  items: MenuItem[] = menuItems
+  items: MenuItem[] = menuItems // Asegúrate que menuItems esté bien definido y exportado
 ): string | null => {
+  const normalizedPath = path.endsWith("/") ? path.slice(0, -1) : path;
+
   for (const item of items) {
-    // Normalizar las rutas para comparar correctamente
+    // Normalizar path del item del menú
     const normalizedItemPath = item.path.endsWith("/")
       ? item.path.slice(0, -1)
       : item.path;
 
-    const normalizedPath = path.endsWith("/") ? path.slice(0, -1) : path;
-
-    // Verificar si esta es la ruta que buscamos
+    // Comparación exacta de paths normalizados
     if (normalizedItemPath === normalizedPath) {
+      // console.log(`[findModulePermissionForPath] Match found: ${path} -> ${item.modulePermission}`);
       return item.modulePermission;
     }
 
-    // Verificar en los hijos si existen
+    // Búsqueda recursiva en hijos
     if (item.children && item.children.length > 0) {
       const childPermission = findModulePermissionForPath(path, item.children);
       if (childPermission) {
@@ -30,48 +32,45 @@ export const findModulePermissionForPath = (
     }
   }
 
-  return null;
+  // console.log(`[findModulePermissionForPath] No permission found for path: ${path}`);
+  return null; // No se encontró permiso para esta ruta exacta
 };
 
 /**
- * Verifica si un usuario tiene acceso a un elemento del menú
+ * Verifica si un usuario tiene acceso a un elemento del menú.
+ * Esta función NO es usada directamente por los Guards, pero puede ser útil en otros lugares.
+ * Los Guards usan `useModulePermissions().hasModuleAccess`.
  */
 export const hasAccessToMenuItem = (
   item: MenuItem,
-  modulePermissions: Record<string, boolean> | string[]
+  modulePermissions: Record<string, boolean> | string[] // Puede ser objeto o array
 ): boolean => {
-  // Si es visible siempre, permitir acceso
+  if (!item.modulePermission) return true; // Si el item no declara permiso, se asume visible
   if (item.modulePermission === "always_visible") return true;
 
-  // Verificar acceso según tipo de modulePermissions
   let hasDirectAccess = false;
-
   if (Array.isArray(modulePermissions)) {
-    // Si es un array de nombres de módulos
     hasDirectAccess = modulePermissions.includes(item.modulePermission);
-  } else {
-    // Si es un objeto de booleanos
+  } else if (
+    typeof modulePermissions === "object" &&
+    modulePermissions !== null
+  ) {
     hasDirectAccess = !!modulePermissions[item.modulePermission];
+  } else {
+    console.warn(
+      "[hasAccessToMenuItem] modulePermissions no es un array ni un objeto válido:",
+      modulePermissions
+    );
+    return false; // O manejar como prefieras
   }
 
-  // Si tiene hijos, verificar acceso a alguno de ellos
+  // Si tiene hijos, el acceso al padre depende de tener acceso directo O acceso a algún hijo
   if (item.children && item.children.length > 0) {
-    return (
-      hasDirectAccess ||
-      item.children.some((child) =>
-        hasAccessToMenuItem(child, modulePermissions)
-      )
+    const hasAccessToChild = item.children.some((child) =>
+      hasAccessToMenuItem(child, modulePermissions)
     );
+    return hasDirectAccess || hasAccessToChild;
   }
 
   return hasDirectAccess;
 };
-
-/**
- * Lista de módulos críticos que siempre deberían estar disponibles
- */
-export const CRITICAL_MODULES = [
-  "panel_monitoreo",
-  "administracion",
-  "usuarios",
-];
