@@ -117,14 +117,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }`
         );
 
+        // Asegurarse de que el usuario tenga la propiedad role completa con rolesModules
+        const userData = response.user;
+
         // Guardar token y datos del usuario
         tokenStorage.setToken(response.token, storageType);
-        tokenStorage.setUser(response.user, storageType);
+        tokenStorage.setUser(userData, storageType);
 
-        setUser(response.user);
+        setUser(userData);
         setIsAuthenticated(true);
 
-        return { success: true, user: response.user };
+        return { success: true, user: userData };
       } else {
         // Formatear el mensaje de error
         let errorMsg = response.error || "Error de autenticación";

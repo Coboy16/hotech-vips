@@ -113,7 +113,6 @@ export interface LogoutModalProps {
   onCancel: () => void;
   isLoading?: boolean;
 }
-
 export interface LicenseInfoForUserForm {
   id: string;
   name: string;

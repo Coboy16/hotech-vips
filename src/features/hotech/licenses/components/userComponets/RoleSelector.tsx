@@ -5,7 +5,10 @@ import { Loader2, AlertCircle } from "lucide-react";
 
 interface RoleSelectorProps {
   selectedRole: string;
-  onChange: (roleId: string) => void;
+  onChange: (
+    roleId: string,
+    modules?: { module_id: string; name: string }[]
+  ) => void;
   className?: string;
   disabled?: boolean;
 }
@@ -38,6 +41,16 @@ export function RoleSelector({
     fetchRoles();
   }, []); // Cargar solo una vez al montar
 
+  const handleRoleChange = (roleId: string) => {
+    // Buscar el rol seleccionado
+    const selectedRoleObj = roles.find((role) => role.rol_id === roleId);
+    // Extraer los módulos del rol si existen
+    const roleModules =
+      selectedRoleObj?.rolesModules?.map((rm) => rm.module) || [];
+    // Llamar al onChange con el ID del rol y los módulos asociados
+    onChange(roleId, roleModules);
+  };
+
   const baseClasses =
     "block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed";
 
@@ -62,7 +75,7 @@ export function RoleSelector({
   return (
     <select
       value={selectedRole}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => handleRoleChange(e.target.value)}
       className={`${baseClasses} ${className}`}
       disabled={disabled || roles.length === 0}
     >

@@ -1,15 +1,10 @@
-// src/components/layout/MainLayout.tsx
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { Sidebar } from "./sidebar";
 import { useAuth } from "../../features/auth/contexts/AuthContext";
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC = () => {
   const location = useLocation();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -38,7 +33,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       />
 
       <main className="flex-1 overflow-auto">
-        <div className="p-6">{children}</div>
+        <div className="p-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

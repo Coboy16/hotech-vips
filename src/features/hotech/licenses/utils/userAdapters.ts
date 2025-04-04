@@ -2,22 +2,23 @@ import {
   UserFormData,
   StructureType,
   structureTypeEnum,
-} from "../schemas/userSchema"; // Importar StructureType
+} from "../schemas/userSchema";
 import {
   CreateUserDto,
   ApiUser,
   LicenseInfoForUserForm,
-  UserPermissionDtoEntry,
+  // UserPermissionDtoEntry, // Ya no se necesita aquí
 } from "../../../../model/user";
-import { ModuleCompanyLicense } from "../../../../model/license";
+// import { ModuleCompanyLicense } from "../../../../model/license"; // Ya no se necesita aquí
 
 /**
  * Convierte los datos del FORMULARIO (UserFormData) al DTO para CREAR un usuario (CreateUserDto).
- * **REVISADO:** Implementa la lógica especial para structure_id cuando el tipo es 'company'.
+ * **REVISADO:** Envía `modules: string[]` en lugar de `userPermissions`.
+ * **REVISADO:** Ya no necesita `originalLicenseModules`.
  */
 export const formDataToApiCreateDto = (
-  formData: UserFormData,
-  originalLicenseModules: ModuleCompanyLicense[]
+  formData: UserFormData
+  // originalLicenseModules: ModuleCompanyLicense[] // <- Parámetro eliminado
 ): CreateUserDto => {
   console.log(
     "[userAdapters] formDataToApiCreateDto - Input FormData:",
@@ -28,6 +29,7 @@ export const formDataToApiCreateDto = (
   oneYearFromNowCalc.setFullYear(oneYearFromNowCalc.getFullYear() + 1);
   const formatDateISO = (date: Date): string => date.toISOString();
 
+  // Usar Partial para construir gradualmente, luego castear
   const dto: Partial<CreateUserDto> = {
     usua_nomb: formData.usua_nomb,
     usua_corr: formData.usua_corr,
@@ -40,73 +42,63 @@ export const formDataToApiCreateDto = (
     usua_feve: formData.usua_feve || formatDateISO(oneYearFromNowCalc),
   };
 
+  // Incluir contraseña solo si se proporcionó
   if (formData.password && formData.password.trim() !== "") {
     dto.password = formData.password;
   }
 
-  if (formData.userPermissions && formData.userPermissions.length > 0) {
-    const selectedOriginalModules = originalLicenseModules.filter((licModule) =>
-      formData.userPermissions.includes(licModule.module.module_id)
-    );
-    dto.userPermissions = selectedOriginalModules.map(
-      (origModule) =>
-        ({
-          module_company_license_id: origModule.module_company_license_id,
-          module: {
-            name: origModule.module.name,
-            module_id: origModule.module.module_id,
-          },
-        } as UserPermissionDtoEntry)
-    );
-  }
+  // --- MANEJO DE MÓDULOS (NUEVO) ---
+  // Directamente asignar el array de IDs desde formData.userPermissions
+  // Zod asegura que userPermissions es un array (por defecto [])
+  dto.modules = formData.userPermissions;
+  console.log("[userAdapters] Asignando modules:", dto.modules);
 
-  // --- MANEJO DE ESTRUCTURA REVISADO ---
+  /* --- SECCIÓN ANTERIOR DE USERPERMISSIONS (ELIMINADA) ---
+  if (formData.userPermissions && formData.userPermissions.length > 0) {
+    // ... lógica compleja que usaba originalLicenseModules ...
+    // dto.userPermissions = ... ;
+  }
+  */
+
+  // --- MANEJO DE ESTRUCTURA (SIN CAMBIOS EN LA LÓGICA) ---
   if (formData.assignStructureLater) {
-    // CASO 1: Asignar más tarde
     dto.structure_id = null;
-    dto.structure_type = undefined; // Usar undefined en lugar de null
-    dto.userStructures = [];
+    dto.structure_type = undefined;
+    // dto.userStructures = []; // Opcional, depende de la API
     console.log(
-      `[userAdapters] Assign structure later: structure_id=null, structure_type=null, userStructures=[]`
+      `[userAdapters] Assign structure later: structure_id=null, structure_type=undefined`
     );
   } else {
-    // CASO 2: Asignar ahora
-    const selectedType = formData.structure_type as StructureType | ""; // Castear para seguridad
-    dto.structure_type = selectedType || undefined; // Enviar tipo o undefined si está vacío
+    const selectedType = formData.structure_type as StructureType | "";
+    dto.structure_type = selectedType || undefined;
 
-    // *** REGLA ESPECIAL: Si el tipo es 'company', usar license_id ***
     if (selectedType === "company") {
-      // IMPORTANTE: Usar el ID de la licencia que viene en formData
       dto.structure_id = formData.company_license_id;
       console.log(
         `[userAdapters] Specific structure (COMPANY): structure_id=${dto.structure_id} (using license ID), structure_type=${dto.structure_type}`
       );
-    }
-    // *** Para otros tipos, usar el ID seleccionado en el form ***
-    else if (formData.structure_id) {
-      dto.structure_id = formData.structure_id; // ID de sede, depto, etc.
+    } else if (formData.structure_id) {
+      dto.structure_id = formData.structure_id;
       console.log(
         `[userAdapters] Specific structure (Other: ${selectedType}): structure_id=${dto.structure_id} (from form selection), structure_type=${dto.structure_type}`
       );
-    }
-    // *** Fallback: Si no es 'company' y no hay ID (inesperado si la validación funciona) ***
-    else {
-      dto.structure_id = null;
+    } else {
+      dto.structure_id = null; // Fallback si falta ID (validación debería prevenir)
       console.warn(
         `[userAdapters] Assigning now, but structure_id is missing for type ${selectedType}. Sending null.`
       );
     }
-    // No enviar userStructures: [] cuando se asigna una estructura específica
   }
 
   console.log(
     "[userAdapters] formDataToApiCreateDto - Final DTO:",
     JSON.stringify(dto, null, 2)
   );
+  // Castear a CreateUserDto al final
   return dto as CreateUserDto;
 };
 
-// --- Adaptador apiUserToFormData (Sin cambios funcionales necesarios) ---
+// --- Adaptador apiUserToFormData (Sin cambios necesarios para ESTE requerimiento) ---
 export const apiUserToFormData = (
   apiUser: ApiUser,
   licenseInfo: LicenseInfoForUserForm
@@ -131,22 +123,28 @@ export const apiUserToFormData = (
     }
   };
 
+  // Al convertir *DESDE* la API *HACIA* el formulario, seguimos extrayendo los IDs
+  // de los módulos desde `apiUser.userPermissions` (si la API los devuelve así al GET user)
+  // y los ponemos en `formData.userPermissions`. Si la API devolviera un campo `modules`
+  // directamente en el GET user, ajustaríamos aquí.
+  const moduleIdsFromApi =
+    apiUser.userPermissions
+      ?.map((p) => p.module?.module_id)
+      .filter((id): id is string => !!id) || [];
+
   const formData: UserFormData = {
     usua_nomb: apiUser.usua_nomb || "",
     usua_corr: apiUser.usua_corr || "",
     usua_noco: apiUser.usua_noco || "",
-    password: "",
+    password: "", // Siempre vacío al cargar
     usua_fein: formatApiDateForInput(apiUser.usua_fein),
     usua_fevc: formatApiDateForInput(apiUser.usua_fevc),
     usua_feve: formatApiDateForInput(apiUser.usua_feve),
     usua_stat: apiUser.usua_stat ?? true,
     rol_id: apiUser.rol_id || "",
-    userPermissions:
-      apiUser.userPermissions
-        ?.map((p) => p.module?.module_id)
-        .filter((id): id is string => !!id) || [],
+    // El formulario sigue usando el campo 'userPermissions' para los IDs seleccionados
+    userPermissions: moduleIdsFromApi,
     structure_id: userStructureInfo?.structure_id || "",
-    // Asegurar que el tipo es válido o vacío
     structure_type: (structureTypeEnum.safeParse(
       userStructureInfo?.structure_type
     ).success

@@ -1,1 +1,1 @@
-export * from "./components/DashboardScreen";
+export * from "./DashboardScreen";

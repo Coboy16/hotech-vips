@@ -1,8 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface LoginCredentials {
   email: string;
   password: string;
   rememberMe?: boolean;
 }
+
+// interface Module {
+//   name: string;
+// }
+
+// interface UserModule {
+//   module: Module;
+// }
 
 export interface User {
   user_id: string;
@@ -14,28 +23,31 @@ export interface User {
   usua_fein: string;
   usua_feve: string;
   usua_stat: boolean;
+  is_admin_hotech?: boolean;
   rol_id: string;
   role?: {
     rol_id: string;
     nombre: string;
+    company_license_id: string | null;
     created_at: string;
     updated_at: string;
+    rolesModules?: Array<{
+      role_module_id: string;
+      module: {
+        name: string;
+        module_id: string;
+      };
+    }>;
   };
-  userPermissions?: Array<{
-    user_permission_id: string;
-    user_id: string;
-    permission_id: string;
-    created_at: string;
-    updated_at: string;
-    permission: {
-      permission_id: string;
-      descripcion: string;
-      modu_id: string;
-      created_at: string;
-      updated_at: string;
+  userModule?: Array<{
+    user_module_id: string;
+    module: {
+      name: string;
+      module_id: string;
     };
   }>;
-  modules: ModulesPermissions;
+  userPermissions?: Array<any>; // Aquí puedes definir la estructura exacta
+  userStructures?: Array<any>; // Aquí puedes definir la estructura exacta
 }
 export interface ModulesPermissions {
   panel_monitoreo: boolean;
