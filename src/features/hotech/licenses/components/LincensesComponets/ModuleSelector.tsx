@@ -12,6 +12,12 @@ import {
   Calendar,
   AlertCircle,
   AlignCenter,
+  Settings,
+  Building2,
+  Mail,
+  FileText,
+  Briefcase,
+  Network,
 } from "lucide-react";
 import { moduleService } from "../../services/moduleService";
 import { Module } from "../../../../../model/module";
@@ -53,6 +59,20 @@ const permissionToLabelMap: Record<string, string> = {
   comedor: "Comedor",
   reportes: "Reportes",
   reportes_mas_usados: "Reportes más usados",
+  configuracion_sistema: "Configuración del Sistema",
+  companias: "Compañías",
+  dispositivos: "Dispositivos",
+  tipos_empleados: "Tipos de Empleados",
+  tipos_acceso: "Tipos de Acceso",
+  correo_electronico: "Correo electrónico",
+  configuracion_general: "Configuración General",
+  perfiles_marcaje: "Perfiles de Marcaje",
+  geocerca: "Geocerca",
+  modalidad_tiempo: "Modalidad De Tiempo",
+  turnos_trabajo: "Turnos de Trabajo",
+  administracion: "Administración",
+  usuarios: "Usuarios",
+  perfiles: "Perfiles",
 };
 
 // Mapeo de permisos a iconos
@@ -70,6 +90,20 @@ const permissionToIconMap: Record<string, React.ElementType> = {
   comedor: Utensils,
   reportes: AlignCenter,
   reportes_mas_usados: Clock,
+  configuracion_sistema: Settings,
+  companias: Building2,
+  dispositivos: Fingerprint,
+  tipos_empleados: UserCheck,
+  tipos_acceso: Briefcase,
+  correo_electronico: Mail,
+  configuracion_general: Settings,
+  perfiles_marcaje: Clock,
+  geocerca: Network,
+  modalidad_tiempo: FileText,
+  turnos_trabajo: FileText,
+  administracion: Settings,
+  usuarios: UserCheck,
+  perfiles: Users,
 };
 
 // Definición de estructura de grupos de módulos y sus hijos
@@ -84,6 +118,19 @@ const moduleGroupsStructure: Record<string, string[]> = {
   control_acceso: ["visitantes", "permisos_acceso"],
   comedor: [],
   reportes: ["reportes_mas_usados"],
+  administracion: ["usuarios", "perfiles"],
+  configuracion_sistema: [
+    "companias",
+    "dispositivos",
+    "tipos_empleados",
+    "tipos_acceso",
+    "correo_electronico",
+    "configuracion_general",
+    "perfiles_marcaje",
+    "geocerca",
+    "modalidad_tiempo",
+    "turnos_trabajo",
+  ],
 };
 
 // Orden de los grupos principales para mostrarlos correctamente
@@ -94,6 +141,8 @@ const groupOrder = [
   "control_acceso",
   "comedor",
   "reportes",
+  "administracion",
+  "configuracion_sistema",
 ];
 
 export function ModuleSelector({
@@ -194,6 +243,13 @@ export function ModuleSelector({
         };
       });
 
+    // Expandir automáticamente los grupos al inicio
+    // const initialExpandedGroups: Record<number, boolean> = {};
+    // groups.forEach((_, index) => {
+    //   initialExpandedGroups[index] = true;
+    // });
+    // setExpandedGroups(initialExpandedGroups);
+
     setModuleGroups(groups);
   };
 
@@ -284,15 +340,8 @@ export function ModuleSelector({
     );
   }
 
-  // Log para depuración
-  console.log(
-    "Renderizando ModuleSelector con selectedModules:",
-    selectedModules
-  );
-  console.log("Grupos de módulos:", moduleGroups);
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
       {moduleGroups.map((group, groupIndex) => (
         <div
           key={group.id}

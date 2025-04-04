@@ -18,7 +18,7 @@ import {
 
 import { UserFormData, StructureType } from "../../schemas/userSchema";
 import { StructureSelector } from "./StructureSelector";
-import { RoleSelector } from "../LincensesComponets/RoleSelector";
+import { RoleSelector } from "./RoleSelector";
 import UserModuleSelector, {
   AvailableModuleOption,
 } from "./UserModuleSelector";
@@ -63,6 +63,7 @@ export function UserForm({
     isSavingInternal,
     setValue,
     trigger,
+    watch,
   } = useUserForm({
     user,
     licenseInfo,
@@ -372,31 +373,49 @@ export function UserForm({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* --- Columna Rol --- */}
-              <div className="space-y-4">
-                <div>
-                  <label className="label-form" htmlFor="rol_id">
-                    Rol asignado <span className="text-red-500">*</span>
-                  </label>
-                  <Controller
-                    name="rol_id"
-                    control={control}
-                    render={({ field }) => (
-                      <RoleSelector
-                        selectedRole={field.value}
-                        onChange={(roleId) => field.onChange(roleId)}
-                        disabled={isSavingInternal}
-                        className={`input-field ${
-                          errors.rol_id && touchedFields.rol_id
-                            ? "input-error"
-                            : ""
-                        }`}
-                      />
-                    )}
-                  />
-                  {errors.rol_id && touchedFields.rol_id && (
-                    <p className="error-message">{errors.rol_id.message}</p>
+              <div>
+                <label className="label-form" htmlFor="rol_id">
+                  Rol asignado <span className="text-red-500">*</span>
+                </label>
+                <Controller
+                  name="rol_id"
+                  control={control}
+                  render={({ field }) => (
+                    <RoleSelector
+                      selectedRole={field.value}
+                      onChange={(roleId, modules) => {
+                        // Actualizar el rol seleccionado
+                        field.onChange(roleId);
+
+                        // Si hay módulos, actualizar los permisos
+                        if (modules && modules.length > 0) {
+                          // Extraer los IDs de los módulos
+                          const moduleIds = modules.map(
+                            (module) => module.module_id
+                          );
+                          // Actualizar el campo de permisos de usuario
+                          setValue("userPermissions", moduleIds, {
+                            shouldValidate: true,
+                          });
+                        } else {
+                          // Si no hay módulos, limpiar los permisos
+                          setValue("userPermissions", [], {
+                            shouldValidate: true,
+                          });
+                        }
+                      }}
+                      disabled={isSavingInternal}
+                      className={`input-field ${
+                        errors.rol_id && touchedFields.rol_id
+                          ? "input-error"
+                          : ""
+                      }`}
+                    />
                   )}
-                </div>
+                />
+                {errors.rol_id && touchedFields.rol_id && (
+                  <p className="error-message">{errors.rol_id.message}</p>
+                )}
               </div>
 
               {/* --- Columna Permisos de Módulo --- */}
@@ -407,6 +426,16 @@ export function UserForm({
                     Acceso a Módulos
                   </h3>
                   <div className="mt-4">
+                    {/* Agregar una nota informativa cuando hay un rol seleccionado */}
+                    {watch("rol_id") && (
+                      <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <span>
+                          Los módulos se asignan automáticamente según el rol
+                          seleccionado. No pueden ser modificados manualmente.
+                        </span>
+                      </div>
+                    )}
                     <Controller
                       name="userPermissions"
                       control={control}
@@ -417,7 +446,8 @@ export function UserForm({
                           onChange={(selectedIds) =>
                             field.onChange(selectedIds)
                           }
-                          disabled={isSavingInternal}
+                          // Deshabilitar si hay un rol seleccionado o si el formulario está guardando
+                          disabled={isSavingInternal || !!watch("rol_id")}
                         />
                       )}
                     />

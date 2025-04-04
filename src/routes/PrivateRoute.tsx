@@ -32,7 +32,7 @@ const findModulePermissionForPath = (
 };
 
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { hasModuleAccess } = useModulePermissions();
   const location = useLocation();
 
@@ -57,6 +57,14 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Si es admin de HoTech, redirigir a la vista específica
+  if (user?.is_admin_hotech) {
+    console.log(
+      "[PrivateRoute] Usuario admin de HoTech, redirigiendo a /home-hotech"
+    );
+    return <Navigate to="/home-hotech" replace />;
+  }
+
   // Verificar permisos de acceso para la ruta actual
   const modulePermission = findModulePermissionForPath(
     location.pathname,
@@ -65,11 +73,6 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
 
   // Si no encontramos un permiso específico, permitir el acceso (podría ser una ruta de sistema)
   if (!modulePermission) {
-    return <>{children}</>;
-  }
-
-  // Si el módulo siempre es visible, permitir acceso
-  if (modulePermission === "always_visible") {
     return <>{children}</>;
   }
 

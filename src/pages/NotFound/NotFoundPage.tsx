@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const NotFoundPage: React.FC = () => {
+export const NotFoundPage: React.FC = () => {
   return (
     <div className="min-h-full flex items-center justify-center bg-gray-100 py-12">
       <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md w-full">

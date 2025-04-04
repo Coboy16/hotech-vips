@@ -1,20 +1,28 @@
-import React, { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import React from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../features/auth/contexts/AuthContext";
 
 interface PublicRouteProps {
-  children: ReactNode;
+  children: React.ReactElement;
 }
 
 export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // Si estamos en /login y el usuario está autenticado, redirigimos al dashboard
-  if (isAuthenticated && location.pathname === "/login") {
+  // Evita renderizar mientras se verifica el estado de autenticación
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    console.log(
+      "[PublicRoute] Usuario autenticado intentando acceder a ruta pública. Redirigiendo a /dashboard"
+    );
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Si no está autenticado o estamos en otra ruta pública, mostramos el contenido
-  return <>{children}</>;
+  // Si no está autenticado, permite acceder a la ruta pública (ej. login)
+  return children;
 };
+
+export default PublicRoute;

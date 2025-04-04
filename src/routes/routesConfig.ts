@@ -3,9 +3,8 @@ import { lazy } from "react";
 import { menuItems } from "../components/layout/sidebar/config/menuItems";
 import { MenuItem } from "../components/layout/sidebar/types";
 
-// Importaciones dinámicas para lazy loading
 const DashboardScreen = lazy(
-  () => import("../features/dashboard/components/DashboardScreen")
+  () => import("../features/dashboard/DashboardScreen")
 );
 const StructureScreen = lazy(
   () => import("../features/system_configuration/companies/StructureScreen")
@@ -14,77 +13,58 @@ const UsersScreen = lazy(
   () => import("../features/administration/users/UsersScreen")
 );
 
-const LicensesScreen = lazy(
-  () => import("../features/administration/licenses/LicensesScreen")
-);
-
 const NotFoundPage = lazy(() => import("../pages/NotFound/NotFoundPage"));
 
-// Mapeo de rutas a componentes
 const routeComponentMap: Record<string, React.LazyExoticComponent<any>> = {
-  "/dashboard": DashboardScreen,
-  "/system-config/structure": StructureScreen,
-  "/administration/users": UsersScreen,
-  "/administration/licenses": LicensesScreen,
-  // Agregar aquí nuevos mapeos cuando se añadan módulos
+  dashboard: DashboardScreen,
+  "system-config/structure": StructureScreen,
+  "administration/users": UsersScreen,
 };
 
-// Función para obtener los permisos de módulos del usuario actual
 const getUserModulePermissions = () => {
-  // Esto podría obtenerse desde el localStorage donde guardas el usuario
+  const sessionUser = sessionStorage.getItem("user_data");
+  const localUser = localStorage.getItem("user_data");
+  const userString = sessionUser || localUser;
+
+  if (!userString) return {};
+
   try {
-    const user = JSON.parse(
-      localStorage.getItem("user") || sessionStorage.getItem("user") || "{}"
-    );
+    const user = JSON.parse(userString);
     return user?.modules || {};
   } catch (error) {
-    console.error(
-      "[routesConfig] Error obteniendo permisos de módulos:",
-      error
-    );
+    console.error("[routesConfig] Error parseando datos de usuario:", error);
     return {};
   }
 };
 
-// Función recursiva para verificar si un elemento de menú o sus hijos tienen acceso
 const hasAccessToMenuItem = (
   item: MenuItem,
   modulePermissions: Record<string, boolean>
 ): boolean => {
-  // Si es un módulo siempre visible, permitir acceso
-  if (item.modulePermission === "always_visible") {
-    return true;
-  }
+  if (item.modulePermission === "always_visible") return true;
 
-  // Verificar si el usuario tiene acceso a este módulo específico
-  const hasDirectAccess = modulePermissions[item.modulePermission] !== false;
+  const hasDirectAccess = modulePermissions[item.modulePermission] === true;
 
-  // Si no tiene acceso directo y no tiene hijos, denegar acceso
-  if (!hasDirectAccess && (!item.children || item.children.length === 0)) {
-    return false;
-  }
-
-  // Si tiene hijos, verificar si al menos uno es accesible
   if (item.children && item.children.length > 0) {
-    return item.children.some((child) =>
-      hasAccessToMenuItem(child, modulePermissions)
+    return (
+      hasDirectAccess ||
+      item.children.some((child) =>
+        hasAccessToMenuItem(child, modulePermissions)
+      )
     );
   }
 
   return hasDirectAccess;
 };
 
-// Función para generar rutas dinámicamente desde menuItems
-export const generateRoutes = () => {
-  const routes: Record<string, React.LazyExoticComponent<any>> = {
-    ...routeComponentMap,
-  };
-
-  // Obtener permisos de módulos del usuario actual
+export const generateRoutes = (): Record<
+  string,
+  React.LazyExoticComponent<any>
+> => {
+  const accessibleRoutes: Record<string, React.LazyExoticComponent<any>> = {};
   const modulePermissions = getUserModulePermissions();
 
-  // Por ahora, usar permisos estáticos mientras el backend los implementa
-  const staticModulePermissions = {
+  const staticModulePermissionsFallback = {
     panel_monitoreo: true,
     empleados: true,
     gestion_empleados: true,
@@ -100,32 +80,47 @@ export const generateRoutes = () => {
     reportes_mas_usados: false,
   };
 
-  // Usar permisos estáticos mientras no hay implementación del backend
   const effectivePermissions = {
-    ...staticModulePermissions,
+    ...staticModulePermissionsFallback,
     ...modulePermissions,
   };
 
-  // Función recursiva para extraer todas las rutas del menú
-  const extractRoutes = (items: typeof menuItems) => {
+  console.log("[routesConfig] Permisos efectivos:", effectivePermissions);
+
+  const extractAndFilterRoutes = (items: MenuItem[]) => {
     items.forEach((item) => {
-      // Verificar si el usuario tiene acceso a este módulo
       if (hasAccessToMenuItem(item, effectivePermissions)) {
-        // Si no hay un componente específico para esta ruta pero tiene hijos,
-        // mapeamos a un componente por defecto o null
-        if (!routes[item.path] && !item.children) {
-          // Podríamos añadir un componente "en construcción" por defecto
-          routes[item.path] = NotFoundPage;
+        const relativePath = item.path.startsWith("/")
+          ? item.path.substring(1)
+          : item.path;
+
+        const component = routeComponentMap[relativePath];
+
+        if (component) {
+          accessibleRoutes[relativePath] = component;
+          console.log(
+            `[routesConfig] Mapeando ruta accesible: ${relativePath}`
+          );
+        } else if (!item.children || item.children.length === 0) {
+          console.warn(
+            `[routesConfig] No se encontró componente para la ruta: ${relativePath}. Usando NotFound.`
+          );
+          accessibleRoutes[relativePath] = NotFoundPage;
         }
 
-        // Procesar rutas hijas recursivamente
         if (item.children && item.children.length > 0) {
-          extractRoutes(item.children);
+          extractAndFilterRoutes(item.children);
         }
+      } else {
+        console.log(`[routesConfig] Acceso denegado para: ${item.path}`);
       }
     });
   };
 
-  extractRoutes(menuItems);
-  return routes;
+  extractAndFilterRoutes(menuItems);
+  console.log(
+    "[routesConfig] Rutas accesibles generadas:",
+    Object.keys(accessibleRoutes)
+  );
+  return accessibleRoutes;
 };

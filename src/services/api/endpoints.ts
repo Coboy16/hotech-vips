@@ -9,6 +9,7 @@
 export const AUTH_ENDPOINTS = {
   LOGIN: "/login",
   LOGOUT: "/logout",
+  REGISTER: "/registration",
 };
 
 /**
@@ -54,6 +55,14 @@ export const LICENSE_ENDPOINTS = {
 
 export const MODULE_ENDPOINTS = {
   BASE: "/modules",
+};
+/**
+ * Endpoints relacionados con roles
+ */
+export const ROLE_ENDPOINTS = {
+  // Añadido
+  BASE: "/roles",
+  DETAIL: (id: string) => `/roles/${id}`, // Si existe
 };
 /**
  * Endpoints relacionados con la estructura organizacional
