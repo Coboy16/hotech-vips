@@ -12,6 +12,9 @@ interface UserGridProps {
   emptyMessage?: string;
   roleColors: Record<string, string>;
   getRoleLabel: (role: string) => string;
+  // --- INICIO CAMBIO: Asegurar que la prop está definida ---
+  onResetPasswordClick: (user: User, e: React.MouseEvent) => void;
+  // --- FIN CAMBIO ---
 }
 
 const UserGrid: React.FC<UserGridProps> = ({
@@ -23,6 +26,7 @@ const UserGrid: React.FC<UserGridProps> = ({
   emptyMessage = "No se encontraron usuarios con los filtros seleccionados.",
   roleColors,
   getRoleLabel,
+  onResetPasswordClick, // <- Recibir la prop
 }) => {
   // Estado para la paginación
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -36,14 +40,14 @@ const UserGrid: React.FC<UserGridProps> = ({
   // Manejar cambio de página
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll al inicio de la cuadrícula
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Considera si quieres hacer scroll al cambiar de página en la grid
+    // window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Manejar cambio de elementos por página
   const handleItemsPerPageChange = (items: number) => {
     setItemsPerPage(items);
-    setCurrentPage(1); // Resetear a la primera página
+    setCurrentPage(1);
   };
 
   return (
@@ -52,40 +56,47 @@ const UserGrid: React.FC<UserGridProps> = ({
         <>
           {/* Cuadrícula de tarjetas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {paginatedUsers.map((user) => (
-              <div key={user.id} className="relative">
-                <UserCard
-                  user={user}
-                  onCardClick={onCardClick}
-                  onMenuClick={onMenuClick}
-                  menuOpen={contextMenuUser?.id === user.id}
-                  roleColors={roleColors}
-                  getRoleLabel={getRoleLabel}
-                />
-                {/* Renderizar menú contextual si existe y está abierto para este usuario */}
-                {contextMenuUser &&
-                  contextMenuUser.id === user.id &&
-                  renderContextMenu &&
-                  renderContextMenu(user)}
-              </div>
-            ))}
+            {paginatedUsers.map((user) =>
+              // Añadir un chequeo por si user es null/undefined aquí también
+              user ? (
+                <div key={user.id} className="relative">
+                  <UserCard
+                    user={user}
+                    onCardClick={onCardClick}
+                    onMenuClick={onMenuClick}
+                    roleColors={roleColors}
+                    getRoleLabel={getRoleLabel}
+                    // --- INICIO CAMBIO: Pasar la prop a UserCard ---
+                    onResetPasswordClick={onResetPasswordClick}
+                    // --- FIN CAMBIO ---
+                  />
+                  {/* Renderizar menú contextual si existe y está abierto para este usuario */}
+                  {contextMenuUser &&
+                    contextMenuUser.id === user.id &&
+                    renderContextMenu &&
+                    renderContextMenu(user)}
+                </div>
+              ) : null // O renderizar un placeholder si encuentras usuarios nulos aquí
+            )}
           </div>
 
           {/* Paginación */}
-          <div className="mt-6">
-            <Pagination
-              currentPage={currentPage}
-              totalItems={users.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={handlePageChange}
-              onItemsPerPageChange={handleItemsPerPageChange}
-              itemsPerPageOptions={[6, 12, 24, 36]} // Opciones específicas para la vista de cuadrícula
-            />
-          </div>
+          {users.length > itemsPerPage && ( // Mostrar paginación solo si hay más items que los mostrados
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={users.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+                itemsPerPageOptions={[6, 12, 24, 36]}
+              />
+            </div>
+          )}
         </>
       ) : (
         // Mensaje cuando no hay usuarios
-        <div className="bg-white rounded-lg shadow p-8 text-center">
+        <div className="bg-white rounded-lg shadow p-8 text-center mt-6">
           <p className="text-gray-500">{emptyMessage}</p>
         </div>
       )}
