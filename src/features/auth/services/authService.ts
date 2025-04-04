@@ -70,6 +70,15 @@ export const authService = {
           : StorageType.SESSION;
         tokenStorage.setToken(token, storageType);
 
+        // Extraer y guardar el license_id
+        if (userData.userStructures && userData.userStructures.length > 0) {
+          const licenseId = userData.userStructures[0].company_license_id;
+          if (licenseId) {
+            tokenStorage.setLicenseId(licenseId, storageType);
+            console.log("[authService] License ID guardado:", licenseId);
+          }
+        }
+
         // Guardamos los datos completos del usuario (incluyendo userModule)
         tokenStorage.setUser(userData, storageType);
 

@@ -10,8 +10,10 @@ function App() {
   return (
     <AuthProvider>
       <ModulePermissionsProvider>
+        {/* Usa BrowserRouter */}
         <Router>
           <Suspense fallback={<LoadingScreen />}>
+            {/* Renderiza la configuración de rutas basada en JSX */}
             <RouterConfig />
           </Suspense>
           <Toaster position="top-right" />

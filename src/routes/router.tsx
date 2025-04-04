@@ -5,22 +5,13 @@ import { PrivateRoute } from "./PrivateRoute";
 import { PublicRoute } from "./PublicRoute";
 import { MainLayout } from "../components/layout/MainLayout";
 import { generateRoutes } from "./routesConfig"; // Genera las rutas dinámicamente según permisos
+import { LoadingScreen } from "../components/common/loading/LoadingScreen";
 
 // --- Lazy Loading de Componentes ---
 const LoginScreen = lazy(() => import("../features/auth/LoginScreen"));
 const NotFoundPage = lazy(() => import("../pages/NotFound/NotFoundPage"));
 
 // --- Componente de Carga (Usado en Suspense) ---
-const LoadingScreen = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-100">
-    <div className="p-4 bg-white rounded shadow-md">
-      <div className="flex items-center space-x-2">
-        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span>Cargando...</span>
-      </div>
-    </div>
-  </div>
-);
 
 // --- Wrapper para Suspense ---
 // Envuelve un componente cargado dinámicamente con un fallback de carga.
