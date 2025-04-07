@@ -127,4 +127,5 @@ export interface UserFormData {
   company_license_id?: string;
   structure_id?: string;
   structure_type?: string;
+  userPermissions?: string[];
 }

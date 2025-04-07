@@ -26,7 +26,9 @@ import UserAvatar from "./components/UserAvatar";
 import { tokenStorage } from "../../auth/utils/tokenStorage";
 import { LicenseInfoForUserForm } from "../../../model/user";
 import toast from "react-hot-toast";
+// Importar el formulario de cambio/reseteo de contraseña
 import PasswordChangeForm from "./components/changePassword/passwordChangeSchema";
+import { DeleteUserModal } from "./components/DeleteUserModal";
 
 export function UsersScreen() {
   // --- Estados (sin cambios) ---
@@ -35,8 +37,8 @@ export function UsersScreen() {
   const licenseInfo: LicenseInfoForUserForm = useMemo(() => {
     return {
       id: tokenStorage.getLicenseId() || "",
-      name: "",
-      code: "",
+      name: "", // Podrías querer obtener el nombre de la licencia también
+      code: "", // Podrías querer obtener el código también
     };
   }, []);
 
@@ -52,8 +54,14 @@ export function UsersScreen() {
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [contextMenuUser, setContextMenuUser] = useState<User | null>(null);
 
+  // --- Estados para el reseteo de contraseña ---
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false); // Estado de carga para delete
+
   // --- Hook useUsers (sin cambios) ---
   const {
     users,
@@ -63,22 +71,19 @@ export function UsersScreen() {
     loadUsers,
     createUser,
     updateUser,
-    updatePassword,
+    updatePassword, // Usaremos esta función del hook
     setSelectedUser,
+    deleteUserByEmail,
   } = useUsers();
 
-  // --- Filtrado (con chequeo adicional) ---
+  // --- Filtrado (sin cambios) ---
   const filteredUsers = users.filter((user) => {
-    // --- INICIO CAMBIO ---
-    // Chequeo defensivo por si 'user' es undefined/null en el array original
     if (!user) {
       console.warn(
         "Se encontró un usuario nulo/undefined durante el filtrado."
       );
       return false;
     }
-    // --- FIN CAMBIO ---
-
     const matchesSearch =
       `${user.firstName} ${user.lastName}`
         .toLowerCase()
@@ -100,18 +105,17 @@ export function UsersScreen() {
 
   // --- Datos para filtros (sin cambios) ---
   const allDepartments = Array.from(
-    new Set(users.flatMap((user) => user?.departments || [])) // Añadir ? por si user es null
+    new Set(users.flatMap((user) => user?.departments || []))
   ).sort();
   const roles = Array.from(
     new Set(users.map((user) => user?.role || "unknown"))
-  ) // Añadir ? y fallback
-    .map((role) => ({
-      value: role,
-      label:
-        role === "unknown"
-          ? "Desconocido"
-          : role.charAt(0).toUpperCase() + role.slice(1),
-    }));
+  ).map((role) => ({
+    value: role,
+    label:
+      role === "unknown"
+        ? "Desconocido"
+        : role.charAt(0).toUpperCase() + role.slice(1),
+  }));
   const filterOptions = {
     role: {
       label: "Rol",
@@ -134,24 +138,19 @@ export function UsersScreen() {
     },
   };
 
+  // --- Handler Submit Formulario Creación/Edición (sin cambios) ---
   const handleNewFormSubmit = async (formData: UserFormData) => {
     try {
       console.log("[UsersScreen] Datos del formulario recibidos:", formData);
-
-      // Verificar que rol_id existe y es un string no vacío
       if (!formData.rol_id) {
-        console.error(
-          "[UsersScreen] Error: rol_id es requerido pero no está presente en los datos del formulario"
-        );
+        console.error("[UsersScreen] Error: rol_id es requerido.");
         toast.error("Error: Debe seleccionar un rol para el usuario");
         return;
       }
-
-      // Construir los datos a enviar asegurándonos de que todos los campos requeridos estén presentes
       const userData = {
-        password: formData.password || "Temporal123",
+        password: formData.password || undefined, // Enviar undefined si está vacío para no actualizar
         usua_corr: formData.usua_corr,
-        usua_noco: formData.usua_noco || "000000000", // Valor por defecto si no hay teléfono
+        usua_noco: formData.usua_noco || "000000000",
         usua_nomb: formData.usua_nomb,
         usua_fevc: formData.usua_fevc || new Date().toISOString(),
         usua_fein: formData.usua_fein || new Date().toISOString(),
@@ -161,29 +160,38 @@ export function UsersScreen() {
             new Date().setFullYear(new Date().getFullYear() + 1)
           ).toISOString(),
         usua_stat: formData.usua_stat === undefined ? true : formData.usua_stat,
-        rol_id: formData.rol_id, // Asegurar que esto venga del formulario
+        rol_id: formData.rol_id,
         company_license_id:
           formData.company_license_id ||
           licenseInfo.id ||
           tokenStorage.getLicenseId(),
         structure_id: formData.structure_id || tokenStorage.getStructureId(),
         structure_type: formData.structure_type || "company",
+        // Asegúrate de que los adapters envíen los módulos correctamente si es necesario
+        modules: formData.userPermissions, // Si el adapter lo pone en userPermissions
       };
-
       console.log("[UsersScreen] Datos completos a enviar:", userData);
-      console.log("[UsersScreen] Verificando rol_id:", {
-        fromForm: formData.rol_id,
-        finalValue: userData.rol_id,
-      });
-      // Enviar los datos
       let result;
       if (selectedUser) {
-        result = await updateUser(selectedUser.id, userData);
+        // Si hay contraseña, incluirla, sino, excluirla del objeto a enviar
+        const updateData = { ...userData };
+        if (!updateData.password) {
+          delete updateData.password; // No enviar password si está vacío en edición
+        }
+        result = await updateUser(selectedUser.id, updateData);
       } else {
+        // Para creación, la contraseña es obligatoria (o debería tener un default)
+        if (!userData.password) {
+          userData.password = "Temporal123!"; // O generar una segura
+          console.warn(
+            "[UsersScreen] Contraseña no provista para nuevo usuario, usando default."
+          );
+          toast("Se asignó una contraseña temporal.", {
+            icon: "ℹ️",
+          });
+        }
         result = await createUser(userData);
       }
-
-      // Manejar el resultado
       if (result) {
         toast.success(
           selectedUser
@@ -193,12 +201,44 @@ export function UsersScreen() {
         setShowForm(false);
         loadUsers();
       } else {
-        toast.error("No se pudo completar la operación. Intente nuevamente.");
+        // El hook ya muestra el error específico
+        // toast.error("No se pudo completar la operación.");
       }
     } catch (error) {
       console.error("[UsersScreen] Error al procesar el formulario:", error);
       toast.error("Error al procesar la solicitud");
     }
+  };
+
+  const handleConfirmDelete = async (email: string) => {
+    if (!email) {
+      toast.error("Error: Email de usuario no encontrado.");
+      return;
+    }
+    console.log(`[UsersScreen] Confirmando eliminación para: ${email}`);
+    setIsDeletingUser(true); // Iniciar estado de carga
+    try {
+      const success = await deleteUserByEmail(email); // Llama al hook
+      if (success) {
+        // El hook ya actualiza la lista y muestra toast de éxito
+        handleCancelDelete(); // Cierra el modal en caso de éxito
+      } else {
+        // El hook muestra toast de error
+        setIsDeletingUser(false); // Detener estado de carga si falla
+      }
+    } catch (error) {
+      console.error("[UsersScreen] Error durante handleConfirmDelete:", error);
+      toast.error("Ocurrió un error inesperado al eliminar.");
+      setIsDeletingUser(false); // Detener estado de carga en caso de excepción
+    }
+    // No cerramos el modal aquí necesariamente, esperamos a que la operación termine.
+    // handleCancelDelete se llama ahora dentro del try/catch o si la operación es exitosa.
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+    setIsDeletingUser(false); // Asegurar que el estado de carga se resetee
   };
 
   // --- Handlers de Filtros y Formulario (sin cambios relevantes) ---
@@ -233,7 +273,7 @@ export function UsersScreen() {
     setShowForm(false);
   };
 
-  // --- Handlers de Context Menu y Acciones (sin cambios relevantes) ---
+  // --- Handlers de Context Menu y Acciones ---
   const handleOpenContextMenu = (user: User, e: React.MouseEvent) => {
     e.stopPropagation();
     setContextMenuUser((prev) => (prev?.id === user.id ? null : user));
@@ -242,32 +282,34 @@ export function UsersScreen() {
     setContextMenuUser(null);
   };
   const handleUserClick = (user: User) => {
-    handleEdit(user);
+    handleEdit(user); // Clic en fila/tarjeta abre edición
   };
-  const handleResetPassword = async () => {
-    setSelectedUserId("");
-    setShowPasswordForm(true);
+
+  // --- INICIO CAMBIO: Handler para abrir el modal de reseteo ---
+  const handleOpenResetPasswordModal = (user: User) => {
+    console.log(
+      `[UsersScreen] Iniciando reseteo de contraseña para: ${user.email} (ID: ${user.id})`
+    );
+    if (user && user.id) {
+      setSelectedUserId(user.id); // Guardar el ID del usuario seleccionado
+      setShowPasswordForm(true); // Mostrar el modal
+      setContextMenuUser(null); // Cerrar menú contextual si estaba abierto
+    } else {
+      console.error(
+        "[UsersScreen] Intento de restablecer contraseña sin usuario válido."
+      );
+      toast.error(
+        "No se pudo identificar al usuario para restablecer la contraseña."
+      );
+    }
   };
-  const handleViewHistory = (user: User) => {
-    console.log("Ver historial de:", user.email);
-    alert(`Historial de actividad para ${user.firstName} ${user.lastName}`);
-  };
+  // --- FIN CAMBIO ---
+
   const handleChangeStatus = async (user: User) => {
     const newStatus = user.status === "active" ? "inactive" : "active";
-    await updateUser(user.id, { status: newStatus });
-    loadUsers();
-  };
-  const handleExportData = (user: User) => {
-    const userJson = JSON.stringify(user, null, 2);
-    const blob = new Blob([userJson], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `user_${user.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await updateUser(user.id, { usua_stat: newStatus === "active" });
+    loadUsers(); // Recargar para reflejar el cambio
+    setContextMenuUser(null);
   };
 
   // --- Configuración visual (Colores, Labels - sin cambios) ---
@@ -279,13 +321,12 @@ export function UsersScreen() {
     unknown: "bg-yellow-100 text-yellow-800",
   };
   const getRoleLabel = (role: string) => {
-    // Asegurarse de manejar rol undefined/null que podría venir de user?.role
     const safeRole = role ?? "unknown";
     if (safeRole === "unknown") return "Desconocido";
     return safeRole.charAt(0).toUpperCase() + safeRole.slice(1);
   };
 
-  // --- Definición de Columnas (sin cambios) ---
+  // --- Definición de Columnas ---
   const columns: ColumnDefinition<User>[] = [
     {
       key: "name",
@@ -317,11 +358,10 @@ export function UsersScreen() {
         <>
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              roleColors[user.role ?? "unknown"] || roleColors.unknown // Usar fallback con ??
+              roleColors[user.role ?? "unknown"] || roleColors.unknown
             }`}
           >
-            {getRoleLabel(user.role)}{" "}
-            {/* getRoleLabel ya maneja undefined/null */}
+            {getRoleLabel(user.role)}
           </span>
           <div className="mt-1 text-sm text-gray-500">
             {user.departments && user.departments.length > 0 ? (
@@ -354,12 +394,12 @@ export function UsersScreen() {
               <Building2 className="w-5 h-5 text-amber-500" />
             </div>
           )}
-          {!user.permissions ||
+          {(!user.permissions ||
             (!user.permissions.approveHours &&
               !user.permissions.modifyChecks &&
-              !user.permissions.manageReports && (
-                <span className="text-gray-400">-</span>
-              ))}
+              !user.permissions.manageReports)) && (
+            <span className="text-gray-400">-</span>
+          )}
         </div>
       ),
     },
@@ -384,12 +424,12 @@ export function UsersScreen() {
       render: (user) => (
         <span
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            user.status === "active"
+            user.status
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
           }`}
         >
-          {user.status === "active" ? "Activo" : "Inactivo"}
+          {user.status ? "Activo" : "Inactivo"}
         </span>
       ),
     },
@@ -401,6 +441,7 @@ export function UsersScreen() {
       cellClassName: "stopPropagation",
       render: (user) => (
         <div className="relative flex items-center justify-end space-x-2">
+          {/* Botón Editar */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -409,47 +450,55 @@ export function UsersScreen() {
             className="text-blue-600 hover:text-blue-900"
             title="Editar usuario"
           >
-            <UserCog className="w-5 h-5" />
+            {" "}
+            <UserCog className="w-5 h-5" />{" "}
           </button>
+
+          {/* --- INICIO CAMBIO: Botón Restablecer Contraseña --- */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleResetPassword(user);
-            }}
+              handleOpenResetPasswordModal(user);
+            }} // Llamar al nuevo handler
             className="text-amber-600 hover:text-amber-900"
             title="Restablecer contraseña"
           >
-            <Key className="w-5 h-5" />
+            {" "}
+            <Key className="w-5 h-5" />{" "}
           </button>
+          {/* --- FIN CAMBIO --- */}
+
+          {/* Botón Activar/Desactivar */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleChangeStatus(user);
             }}
             className={`${
-              user.status === "active"
+              user.status
                 ? "text-red-600 hover:text-red-900"
                 : "text-green-600 hover:text-green-900"
             }`}
-            title={
-              user.status === "active"
-                ? "Desactivar usuario"
-                : "Activar usuario"
-            }
+            title={user.status ? "Desactivar usuario" : "Activar usuario"}
           >
-            {user.status === "active" ? (
+            {user.status ? (
               <XCircle className="w-5 h-5" />
             ) : (
               <CheckCircle2 className="w-5 h-5" />
             )}
           </button>
+
+          {/* Botón Más Acciones (Context Menu) */}
           <button
             onClick={(e) => handleOpenContextMenu(user, e)}
             className="text-gray-500 hover:text-gray-700"
             title="Más acciones"
           >
-            <MoreVertical className="h-5 w-5" />
+            {" "}
+            <MoreVertical className="h-5 w-5" />{" "}
           </button>
+
+          {/* Renderizado Condicional del Context Menu */}
           {contextMenuUser && contextMenuUser.id === user.id && (
             <UserContextMenu
               user={user}
@@ -459,20 +508,18 @@ export function UsersScreen() {
                 handleEdit(u);
                 handleCloseContextMenu();
               }}
+              // --- INICIO CAMBIO: Pasar handler de reseteo al Context Menu ---
               onResetPassword={(u) => {
-                handleResetPassword(u);
-                handleCloseContextMenu();
-              }}
-              onViewHistory={(u) => {
-                handleViewHistory(u);
+                handleOpenResetPasswordModal(u);
                 handleCloseContextMenu();
               }}
               onChangeStatus={(u) => {
                 handleChangeStatus(u);
                 handleCloseContextMenu();
               }}
-              onExportData={(u) => {
-                handleExportData(u);
+              onDeleteRequest={(u) => {
+                setUserToDelete(u);
+                setShowDeleteModal(true);
                 handleCloseContextMenu();
               }}
             />
@@ -492,20 +539,18 @@ export function UsersScreen() {
         handleEdit(u);
         handleCloseContextMenu();
       }}
+      // --- INICIO CAMBIO: Pasar handler de reseteo al Context Menu ---
       onResetPassword={(u) => {
-        handleResetPassword(u);
-        handleCloseContextMenu();
-      }}
-      onViewHistory={(u) => {
-        handleViewHistory(u);
+        handleOpenResetPasswordModal(u);
         handleCloseContextMenu();
       }}
       onChangeStatus={(u) => {
         handleChangeStatus(u);
         handleCloseContextMenu();
       }}
-      onExportData={(u) => {
-        handleExportData(u);
+      onDeleteRequest={(u) => {
+        setUserToDelete(u);
+        setShowDeleteModal(true);
         handleCloseContextMenu();
       }}
     />
@@ -568,8 +613,8 @@ export function UsersScreen() {
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
-            <Plus className="w-5 h-5" />
-            <span>Nuevo Usuario</span>
+            {" "}
+            <Plus className="w-5 h-5" /> <span>Nuevo Usuario</span>{" "}
           </button>
         </div>
 
@@ -606,7 +651,6 @@ export function UsersScreen() {
               initialSortDirection={sortDirection}
               onSort={handleSort}
             />
-            {/* Paginación Lista */}
             {filteredUsers.length > itemsPerPage && (
               <div className="p-4 border-t border-gray-200">
                 <Pagination
@@ -625,9 +669,9 @@ export function UsersScreen() {
           </div>
         ) : (
           <div className="mt-6">
-            {/* --- INICIO CAMBIO: Pasar onResetPasswordClick a UserGrid --- */}
+            {/* --- INICIO CAMBIO: Pasar handler correcto a UserGrid --- */}
             <UserGrid
-              users={filteredUsers}
+              users={filteredUsers} // Pasar usuarios filtrados, no paginados (grid maneja su paginación)
               onCardClick={handleUserClick}
               onMenuClick={handleOpenContextMenu}
               contextMenuUser={contextMenuUser}
@@ -636,42 +680,52 @@ export function UsersScreen() {
               roleColors={roleColors}
               getRoleLabel={getRoleLabel}
               onResetPasswordClick={(user, e) => {
-                // <- Pasar la prop correcta
+                // Pasar la prop correcta
                 e.stopPropagation();
-                handleResetPassword(user);
-                handleCloseContextMenu();
+                handleOpenResetPasswordModal(user); // Usar el handler que abre el modal
+                // handleCloseContextMenu(); // No es necesario si handleOpenResetPasswordModal ya lo hace
               }}
             />
-            {/* --- FIN CAMBIO --- */}
+            {/* Paginación para Grid se maneja dentro de UserGrid ahora */}
           </div>
         )}
       </div>
 
-      {/* Modal Formulario */}
+      {/* Modal Formulario Creación/Edición */}
       {showForm && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-            <UserForm
-              user={selectedUser}
-              onClose={handleCloseForm}
-              onSave={handleNewFormSubmit}
-              licenseInfo={licenseInfo}
-              availableModules={availableModules || []}
-            />
-          </div>
-        </div>
+        <UserForm
+          user={selectedUser}
+          onClose={handleCloseForm}
+          onSave={handleNewFormSubmit}
+          licenseInfo={licenseInfo}
+          availableModules={availableModules || []}
+        />
       )}
+
+      {/* --- INICIO CAMBIO: Modal Formulario Reseteo Contraseña --- */}
       {showPasswordForm && (
         <PasswordChangeForm
-          userId={selectedUserId}
-          onClose={() => setShowPasswordForm(false)}
-          onSubmit={async (userId, currentPassword, newPassword) => {
+          userId={selectedUserId} // Pasar el ID del usuario seleccionado
+          onClose={() => {
+            setShowPasswordForm(false);
+            setSelectedUserId(null); // Limpiar ID al cerrar
+          }}
+          // Pasar el handler que realmente llama al hook/servicio
+          onSubmit={async (userId, newPassword) => {
+            // La lógica de llamar a updatePassword está aquí
             const success = await updatePassword(userId, newPassword);
-            if (success) {
-              setShowPasswordForm(false);
-            }
+            // El formulario se cerrará si tiene éxito desde su propio `processSubmit`
+            // Pero retornamos el éxito para que el form sepa si cerrar o no
             return success;
           }}
+        />
+      )}
+      {showDeleteModal && (
+        <DeleteUserModal
+          user={userToDelete}
+          onConfirmDelete={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+          isDeleting={isDeletingUser} // Pasar estado de carga
         />
       )}
     </div>

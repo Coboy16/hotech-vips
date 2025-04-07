@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { userService } from "../services/userService";
@@ -8,12 +9,12 @@ import {
   UpdateUserDto,
   User,
 } from "../types/user";
-import { transformUserToApiDto } from "../utils/transformers";
 
 export const useUsers = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [, setUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Cargar todos los usuarios
@@ -85,37 +86,52 @@ export const useUsers = () => {
 
   // Actualizar un usuario existente
   const updateUser = useCallback(
-    async (id: string, userData: Partial<User>): Promise<User | null> => {
-      setLoading(true);
+    async (id: string, userData: UpdateUserDto): Promise<User | null> => {
+      // Recibe UpdateUserDto directamente
+      setUpdating(true); // Usar estado de carga específico
       setError(null);
       try {
-        // Transformar datos del formulario al DTO de la API
-        const apiUserData = transformUserToApiDto(userData) as UpdateUserDto;
+        // ¡¡NO LLAMAR A transformUserToApiDto!!
+        // El objeto `userData` ya debe venir en el formato correcto (o mínimo) para la API.
+        // Para cambio de estado, será: { usua_stat: boolean }
+        // Para el formulario principal, handleNewFormSubmit construye el objeto completo.
+        console.log(
+          `[useUsers] Actualizando usuario ${id} con datos:`,
+          userData
+        );
 
-        const updatedUser = await userService.update(id, apiUserData);
-        if (updatedUser) {
-          setUsers((prev) =>
-            prev.map((user) => (user.id === id ? updatedUser : user))
+        const updatedUserFromApi = await userService.update(id, userData); // Enviar userData directamente
+
+        if (updatedUserFromApi) {
+          // Transformar la respuesta de la API (ApiUser) al formato local (User)
+          // const formattedUpdatedUser = transformApiUserToUser(updatedUserFromApi);
+
+          // Actualizar el estado local
+          setUsers(
+            (prev) =>
+              prev.map((user) => (user.id === id ? updatedUserFromApi : user)) // Asumiendo que update devuelve User
           );
 
+          // Actualizar usuario seleccionado si coincide
           if (selectedUser?.id === id) {
-            setSelectedUser(updatedUser);
+            setSelectedUser(updatedUserFromApi); // Asumiendo que update devuelve User
           }
 
           toast.success("Usuario actualizado exitosamente");
-          return updatedUser;
+          return updatedUserFromApi; // Asumiendo que update devuelve User
         }
-        throw new Error("No se pudo actualizar el usuario");
-      } catch (err) {
-        setError("Error al actualizar el usuario");
+        // userService.update debe lanzar error si falla
+        return null; // Si no hubo error pero no devolvió usuario (raro)
+      } catch (err: any) {
+        setError(err.message || "Error al actualizar el usuario");
         console.error("Error al actualizar usuario:", err);
-        toast.error("No se pudo actualizar el usuario");
+        toast.error(err.message || "No se pudo actualizar el usuario.");
         return null;
       } finally {
-        setLoading(false);
+        setUpdating(false); // Finalizar estado de carga específico
       }
     },
-    [selectedUser]
+    [selectedUser] // Dependencia de selectedUser sigue siendo relevante si lo actualizamos
   );
 
   // Actualizar contraseña de usuario
@@ -185,31 +201,32 @@ export const useUsers = () => {
   // Eliminar un usuario por email
   const deleteUserByEmail = useCallback(
     async (email: string): Promise<boolean> => {
-      setLoading(true);
+      // setLoading(true); // Opcional: Podrías usar un loading específico para delete
       setError(null);
       try {
-        const success = await userService.deleteByEmail(email);
+        const success = await userService.deleteByEmail(email); // Llama al servicio
         if (success) {
           setUsers((prev) => prev.filter((user) => user.email !== email));
-
           if (selectedUser?.email === email) {
             setSelectedUser(null);
           }
-
           toast.success("Usuario eliminado exitosamente");
           return true;
         }
-        throw new Error("No se pudo eliminar el usuario");
-      } catch (err) {
+        throw new Error(
+          "No se pudo eliminar el usuario (respuesta API no exitosa)"
+        );
+      } catch (err: any) {
         setError("Error al eliminar el usuario");
         console.error("Error al eliminar usuario por email:", err);
-        toast.error("No se pudo eliminar el usuario");
+        // Mostrar el mensaje de error específico si viene de makeRequest o uno genérico
+        toast.error(err.message || "No se pudo eliminar el usuario.");
         return false;
       } finally {
-        setLoading(false);
+        // setLoading(false);
       }
     },
-    [selectedUser]
+    [selectedUser /* setLoading - si lo usas */]
   );
 
   // Cargar usuarios al montar el componente

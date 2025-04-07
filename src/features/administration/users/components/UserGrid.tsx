@@ -56,27 +56,26 @@ const UserGrid: React.FC<UserGridProps> = ({
         <>
           {/* Cuadrícula de tarjetas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {paginatedUsers.map((user) =>
-              // Añadir un chequeo por si user es null/undefined aquí también
-              user ? (
-                <div key={user.id} className="relative">
-                  <UserCard
-                    user={user}
-                    onCardClick={onCardClick}
-                    onMenuClick={onMenuClick}
-                    roleColors={roleColors}
-                    getRoleLabel={getRoleLabel}
-                    // --- INICIO CAMBIO: Pasar la prop a UserCard ---
-                    onResetPasswordClick={onResetPasswordClick}
-                    // --- FIN CAMBIO ---
-                  />
-                  {/* Renderizar menú contextual si existe y está abierto para este usuario */}
-                  {contextMenuUser &&
-                    contextMenuUser.id === user.id &&
-                    renderContextMenu &&
-                    renderContextMenu(user)}
-                </div>
-              ) : null // O renderizar un placeholder si encuentras usuarios nulos aquí
+            {paginatedUsers.map(
+              (user) =>
+                // Añadir un chequeo por si user es null/undefined aquí también
+                user ? (
+                  <div key={user.id} className="relative">
+                    <UserCard
+                      user={user}
+                      onCardClick={onCardClick}
+                      onMenuClick={onMenuClick}
+                      roleColors={roleColors}
+                      getRoleLabel={getRoleLabel}
+                      onResetPasswordClick={onResetPasswordClick}
+                    />
+                    {/* Renderizar menú contextual si existe y está abierto para este usuario */}
+                    {contextMenuUser &&
+                      contextMenuUser.id === user.id &&
+                      renderContextMenu &&
+                      renderContextMenu(user)}
+                  </div>
+                ) : null // O renderizar un placeholder si encuentras usuarios nulos aquí
             )}
           </div>
 
