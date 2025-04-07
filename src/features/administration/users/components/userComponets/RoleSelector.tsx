@@ -39,16 +39,22 @@ export function RoleSelector({
     };
 
     fetchRoles();
-  }, []); // Cargar solo una vez al montar
+  }, []);
 
   const handleRoleChange = (roleId: string) => {
-    // Buscar el rol seleccionado
+    console.log("[RoleSelector] Rol seleccionado:", roleId);
+
+    // Si el ID es vacío, alertar
+    if (!roleId || roleId.trim() === "") {
+      console.warn("[RoleSelector] Se seleccionó un rol con ID vacío");
+    }
+
+    // Buscar el rol seleccionado para obtener sus módulos
     const selectedRoleObj = roles.find((role) => role.rol_id === roleId);
-    // Extraer los módulos del rol si existen
-    const roleModules =
-      selectedRoleObj?.rolesModules?.map((rm) => rm.module) || [];
-    // Llamar al onChange con el ID del rol y los módulos asociados
-    onChange(roleId, roleModules);
+    console.log("[RoleSelector] Objeto de rol encontrado:", selectedRoleObj);
+
+    // Llamar a onChange con el ID del rol
+    onChange(roleId);
   };
 
   const baseClasses =
