@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Plus,
   Shield,
@@ -11,21 +11,35 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
-import { User } from "./types/user";
+import { User, UserFormData } from "./types/user";
 
 import UsersSummary from "./components/UsersSummary";
 import UserGrid from "./components/UserGrid";
 import UserContextMenu from "./components/UserContextMenu";
-import { UserForm } from "./components/UserForm";
+import { UserForm } from "./components/userComponets/UserForm";
 import Filters from "../../../components/common/table/Filters";
 import SortableTable, {
   ColumnDefinition,
 } from "../../../components/common/table/SortableTable";
 import Pagination from "../../../components/common/table/Pagination";
 import UserAvatar from "./components/UserAvatar";
+import { tokenStorage } from "../../auth/utils/tokenStorage";
+import { LicenseInfoForUserForm } from "../../../model/user";
+import toast from "react-hot-toast";
+import PasswordChangeForm from "./components/changePassword/passwordChangeSchema";
 
 export function UsersScreen() {
   // --- Estados (sin cambios) ---
+  const [availableModules] = useState([]);
+
+  const licenseInfo: LicenseInfoForUserForm = useMemo(() => {
+    return {
+      id: tokenStorage.getLicenseId() || "",
+      name: "",
+      code: "",
+    };
+  }, []);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [filterRole, setFilterRole] = useState("all");
@@ -38,6 +52,8 @@ export function UsersScreen() {
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [contextMenuUser, setContextMenuUser] = useState<User | null>(null);
 
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   // --- Hook useUsers (sin cambios) ---
   const {
     users,
@@ -118,6 +134,73 @@ export function UsersScreen() {
     },
   };
 
+  const handleNewFormSubmit = async (formData: UserFormData) => {
+    try {
+      console.log("[UsersScreen] Datos del formulario recibidos:", formData);
+
+      // Verificar que rol_id existe y es un string no vacío
+      if (!formData.rol_id) {
+        console.error(
+          "[UsersScreen] Error: rol_id es requerido pero no está presente en los datos del formulario"
+        );
+        toast.error("Error: Debe seleccionar un rol para el usuario");
+        return;
+      }
+
+      // Construir los datos a enviar asegurándonos de que todos los campos requeridos estén presentes
+      const userData = {
+        password: formData.password || "Temporal123",
+        usua_corr: formData.usua_corr,
+        usua_noco: formData.usua_noco || "000000000", // Valor por defecto si no hay teléfono
+        usua_nomb: formData.usua_nomb,
+        usua_fevc: formData.usua_fevc || new Date().toISOString(),
+        usua_fein: formData.usua_fein || new Date().toISOString(),
+        usua_feve:
+          formData.usua_feve ||
+          new Date(
+            new Date().setFullYear(new Date().getFullYear() + 1)
+          ).toISOString(),
+        usua_stat: formData.usua_stat === undefined ? true : formData.usua_stat,
+        rol_id: formData.rol_id, // Asegurar que esto venga del formulario
+        company_license_id:
+          formData.company_license_id ||
+          licenseInfo.id ||
+          tokenStorage.getLicenseId(),
+        structure_id: formData.structure_id || tokenStorage.getStructureId(),
+        structure_type: formData.structure_type || "company",
+      };
+
+      console.log("[UsersScreen] Datos completos a enviar:", userData);
+      console.log("[UsersScreen] Verificando rol_id:", {
+        fromForm: formData.rol_id,
+        finalValue: userData.rol_id,
+      });
+      // Enviar los datos
+      let result;
+      if (selectedUser) {
+        result = await updateUser(selectedUser.id, userData);
+      } else {
+        result = await createUser(userData);
+      }
+
+      // Manejar el resultado
+      if (result) {
+        toast.success(
+          selectedUser
+            ? "Usuario actualizado con éxito"
+            : "Usuario creado con éxito"
+        );
+        setShowForm(false);
+        loadUsers();
+      } else {
+        toast.error("No se pudo completar la operación. Intente nuevamente.");
+      }
+    } catch (error) {
+      console.error("[UsersScreen] Error al procesar el formulario:", error);
+      toast.error("Error al procesar la solicitud");
+    }
+  };
+
   // --- Handlers de Filtros y Formulario (sin cambios relevantes) ---
   const handleFilterChange = (filterName: string, value: string) => {
     switch (filterName) {
@@ -149,19 +232,6 @@ export function UsersScreen() {
     setSelectedUser(null);
     setShowForm(false);
   };
-  const handleSubmitForm = async (userData: Partial<User>) => {
-    try {
-      if (selectedUser) {
-        await updateUser(selectedUser.id, userData);
-      } else {
-        await createUser(userData);
-      }
-      setShowForm(false);
-      loadUsers();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-    }
-  };
 
   // --- Handlers de Context Menu y Acciones (sin cambios relevantes) ---
   const handleOpenContextMenu = (user: User, e: React.MouseEvent) => {
@@ -174,12 +244,9 @@ export function UsersScreen() {
   const handleUserClick = (user: User) => {
     handleEdit(user);
   };
-  const handleResetPassword = async (user: User) => {
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const success = await updatePassword(user.id, tempPassword);
-    if (success) {
-      alert(`Contraseña temporal generada: ${tempPassword}`);
-    }
+  const handleResetPassword = async () => {
+    setSelectedUserId("");
+    setShowPasswordForm(true);
   };
   const handleViewHistory = (user: User) => {
     console.log("Ver historial de:", user.email);
@@ -587,12 +654,25 @@ export function UsersScreen() {
             <UserForm
               user={selectedUser}
               onClose={handleCloseForm}
-              onSubmit={handleSubmitForm}
-              roles={roles}
-              departments={allDepartments}
+              onSave={handleNewFormSubmit}
+              licenseInfo={licenseInfo}
+              availableModules={availableModules || []}
             />
           </div>
         </div>
+      )}
+      {showPasswordForm && (
+        <PasswordChangeForm
+          userId={selectedUserId}
+          onClose={() => setShowPasswordForm(false)}
+          onSubmit={async (userId, currentPassword, newPassword) => {
+            const success = await updatePassword(userId, newPassword);
+            if (success) {
+              setShowPasswordForm(false);
+            }
+            return success;
+          }}
+        />
       )}
     </div>
   );

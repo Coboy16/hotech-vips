@@ -25,57 +25,6 @@ export const userService = {
    * Obtiene todos los usuarios
    */
 
-  async register(userData: CreateUserDto): Promise<ApiUser | null> {
-    console.log("[userService] Registrando nuevo usuario...");
-    console.log(
-      "[userService] Enviando datos a /registration:",
-      JSON.stringify(userData, null, 2)
-    );
-
-    const response = await makeRequest<RegisterResponse>(
-      "post",
-      AUTH_ENDPOINTS.REGISTER,
-      userData
-    );
-
-    // ----- LÓGICA DE ÉXITO/ERROR CORREGIDA -----
-    if (response && response.statusCode >= 200 && response.statusCode < 300) {
-      // ÉXITO (Status 2xx)
-      console.log(
-        `[userService] Registro recibido con éxito de la API. Status: ${response.statusCode}, Mensaje API: ${response.message}`
-      );
-
-      // Verificamos si la estructura de 'data' es la esperada (contiene user)
-      if (response.data && response.data.user) {
-        console.log(
-          `[userService] Datos del usuario (${response.data.user.user_id}) recibidos correctamente.`
-        );
-        // Todo bien, devuelve los datos del usuario
-        return response.data.user;
-      } else {
-        // Status 2xx pero 'data' no tiene 'user' o 'data' es null/undefined
-        console.warn(
-          `[userService] Registro exitoso (Status ${response.statusCode}), pero la estructura de 'response.data' es inesperada o no contiene 'user'. Respuesta completa:`,
-          response
-        );
-        // AUN ASÍ, DEVOLVEMOS 'response.data.user'. Puede que la API devuelva el usuario
-        // sin el ID en esta respuesta específica, o que 'data' sea null pero el registro
-        // se haya completado.
-        return response.data?.user ?? null; // Convertimos undefined a null para coincidir con el tipo de retorno
-      }
-    } else {
-      // ERROR (Status no 2xx)
-      console.error(
-        "[userService] Error en la API al registrar usuario:",
-        `Status: ${response?.statusCode}, Mensaje: ${
-          response?.message || response?.error || "Respuesta inválida"
-        }`
-      );
-      // Aquí sí devolvemos null porque la operación falló en la API
-      return null;
-    }
-  },
-
   async getAll(): Promise<User[]> {
     // <-- Sin parámetro licenseId
     console.log(
@@ -165,27 +114,37 @@ export const userService = {
   /**
    * Crea un nuevo usuario
    */
+  // En userService.ts
   async create(userData: CreateUserDto): Promise<User | null> {
-    console.log("[userService] Creando nuevo usuario...");
+    try {
+      const response = await makeRequest<RegisterResponse>(
+        "post",
+        AUTH_ENDPOINTS.REGISTER,
+        userData
+      );
 
-    const response = await makeRequest<UserResponse>(
-      "post",
-      USER_ENDPOINTS.BASE,
-      userData
-    );
+      if (response && response.statusCode >= 200 && response.statusCode < 300) {
+        console.log(`[userService] Usuario creado con éxito:`, response);
 
-    if (
-      response &&
-      response.statusCode === 201 &&
-      !Array.isArray(response.data)
-    ) {
-      console.log(`[userService] Usuario creado con éxito.`);
-      return transformApiUserToUser(response.data as unknown as ApiUser);
-    } else {
+        // Ahora sabemos que la respuesta tiene la estructura data.user
+        if (response.data && response.data.user) {
+          return transformApiUserToUser(response.data.user);
+        } else {
+          console.warn(
+            "[userService] Respuesta exitosa pero sin datos de usuario:",
+            response
+          );
+          return null;
+        }
+      }
+
       console.error(
         "[userService] Error al crear usuario:",
-        response?.message || "Respuesta inválida"
+        response?.message || response?.error || "Respuesta inválida"
       );
+      return null;
+    } catch (error) {
+      console.error("[userService] Excepción al crear usuario:", error);
       return null;
     }
   },

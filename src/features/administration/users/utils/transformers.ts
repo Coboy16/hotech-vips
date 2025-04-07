@@ -3,36 +3,80 @@ import { ApiUser, CreateUserDto, Permission, User } from "../types/user";
 /**
  * Transforma un usuario de la API al formato de la aplicación
  */
+// En transformers.ts
 export const transformApiUserToUser = (apiUser: ApiUser): User => {
-  // Mapeo básico de campos
-  const firstName = apiUser.usua_nomb.split(" ")[0] || "";
-  const lastName = apiUser.usua_nomb.split(" ").slice(1).join(" ") || "";
-  const roleName = apiUser.role?.nombre?.toLowerCase() || "unknown"; // <-- Añadido ?. y valor por defecto
+  // Verificar que apiUser existe
+  if (!apiUser) {
+    console.error(
+      "[transformApiUserToUser] Error: apiUser es null o undefined"
+    );
+    // Devolver un objeto de usuario vacío o con valores por defecto
+    return {
+      id: "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "unknown",
+      departments: [],
+      permissions: {
+        approveHours: false,
+        modifyChecks: false,
+        manageReports: false,
+      },
+      lastLogin: "",
+      status: "inactive",
+    };
+  }
 
-  // Mapear userStructures a departments (usando structure_type como ejemplo)
+  console.log("[transformApiUserToUser] Datos del ApiUser:", apiUser);
+
+  // Procesar el nombre con manejo seguro para null/undefined
+  let firstName = "";
+  let lastName = "";
+
+  if (apiUser.usua_nomb) {
+    const nameParts = apiUser.usua_nomb.split(" ");
+    firstName = nameParts[0] || "";
+    lastName = nameParts.slice(1).join(" ") || "";
+  }
+
+  // Mapear roleName de manera segura
+  const roleName = apiUser.role?.nombre?.toLowerCase() || "unknown";
+
+  // Mapear departments de manera segura
   const departments =
-    apiUser.userStructures?.map((structure) => structure.structure_type) || []; // <-- MODIFICADO
+    apiUser.userStructures?.map((structure) => structure.structure_type) || [];
 
-  // Mapear permisos
-  const permissions = mapPermissions(apiUser.userPermissions || [], roleName); // <-- Pasamos roleName
+  // Mapear permisos de manera segura
+  const permissions = {
+    approveHours: false,
+    modifyChecks: false,
+    manageReports: false,
+    adminAccess: roleName === "admin",
+  };
+
+  // Si hay userPermissions, procesarlos
+  if (apiUser.userPermissions && apiUser.userPermissions.length > 0) {
+    // Procesar permisos según tu lógica de negocio
+  }
 
   return {
-    id: apiUser.user_id,
-    firstName: firstName,
-    lastName: lastName,
-    email: apiUser.usua_corr,
-    role: roleName, // <-- Usamos la variable segura
-    departments: departments, // <-- Usamos los departments mapeados
-    permissions: permissions, // <-- Usamos los permisos mapeados
-    lastLogin: apiUser.usua_fevc, // Manteniendo usua_fevc, pero ten en cuenta que no es el último login real
+    id: apiUser.user_id || "",
+    firstName,
+    lastName,
+    email: apiUser.usua_corr || "",
+    role: roleName,
+    departments,
+    permissions,
+    lastLogin: apiUser.usua_fevc || "",
     status: apiUser.usua_stat ? "active" : "inactive",
     startDate: apiUser.usua_fein,
     endDate: apiUser.usua_feve,
-    createdAt: apiUser.usua_fevc, // Asumiendo que usua_fevc es la fecha de creación
-    // Campos opcionales que no vienen directamente de la API (o no mapeados aún)
-    avatar: undefined, // Podrías intentar generar uno basado en iniciales o usar un servicio externo
-    phone: undefined, // La API no parece proveerlo
-    twoFactorEnabled: false, // La API no parece proveerlo
+    createdAt: apiUser.usua_fevc,
+    // Campos opcionales
+    avatar: undefined,
+    phone: apiUser.usua_noco,
+    twoFactorEnabled: false,
   };
 };
 

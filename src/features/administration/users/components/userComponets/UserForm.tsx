@@ -28,6 +28,8 @@ import { LicenseInfoForUserForm } from "../../../../../model";
 import { useUserForm } from "../../hooks/userFrom/useUserForm";
 import { useStructureTree } from "../../hooks/userFrom/useStructureTree";
 import { useFormTabs } from "../../hooks/userFrom/useFormTabs";
+import { useEffect, useState } from "react";
+import { roleService } from "../../services/roleService";
 
 interface UserFormProps {
   user?: any | null;
@@ -42,8 +44,20 @@ export function UserForm({
   onClose,
   onSave,
   licenseInfo,
-  availableModules,
-}: UserFormProps) {
+}: // availableModules,
+UserFormProps) {
+  const [roleModules, setRoleModules] = useState<AvailableModuleOption[]>([]);
+
+  const formatModuleName = (moduleName: string): string => {
+    if (!moduleName) return "Módulo sin nombre";
+
+    // Convertir "panel_monitoreo" a "Panel Monitoreo"
+    return moduleName
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   // Usar hook de pestañas
   const { activeTab, setActiveTab } = useFormTabs<
     "basic" | "access" | "structures"
@@ -69,6 +83,69 @@ export function UserForm({
     licenseInfo,
     onSave,
   });
+
+  useEffect(() => {
+    const selectedRoleId = watch("rol_id");
+
+    if (!selectedRoleId) {
+      console.log("[UserForm] No hay rol seleccionado, limpiando módulos");
+      setRoleModules([]);
+      return;
+    }
+
+    console.log(`[UserForm] Cargando módulos para rol: ${selectedRoleId}`);
+
+    const fetchRoleDetails = async () => {
+      try {
+        // Obtener detalles del rol
+        const roleDetails = await roleService.getRoleById(selectedRoleId);
+
+        // Agregar logging detallado para diagnosticar
+        console.log("[UserForm] Rol recibido:", roleDetails);
+        console.log("[UserForm] Módulos en rol:", roleDetails?.rolesModules);
+
+        // Verificar si hay datos de rol y módulos
+        if (roleDetails && Array.isArray(roleDetails.rolesModules)) {
+          // Transformar al formato que espera el componente UserModuleSelector
+          const formattedModules: AvailableModuleOption[] =
+            roleDetails.rolesModules
+              .filter((rm) => rm.module && rm.module.module_id)
+              .map((rm) => ({
+                id: rm.module.module_id,
+                label: formatModuleName(rm.module.name),
+              }));
+
+          console.log("[UserForm] Módulos formateados:", formattedModules);
+
+          if (formattedModules.length > 0) {
+            // Actualizar estado y formulario
+            setRoleModules(formattedModules);
+
+            // Actualizar el campo userPermissions con los IDs de los módulos
+            const moduleIds = formattedModules.map((m) => m.id);
+            console.log("[UserForm] IDs de módulos a establecer:", moduleIds);
+            setValue("userPermissions", moduleIds, { shouldValidate: true });
+          } else {
+            console.warn(
+              "[UserForm] No se encontraron módulos válidos para el rol"
+            );
+            setRoleModules([]);
+            setValue("userPermissions", [], { shouldValidate: true });
+          }
+        } else {
+          console.warn("[UserForm] Estructura de rol inválida o sin módulos");
+          setRoleModules([]);
+          setValue("userPermissions", [], { shouldValidate: true });
+        }
+      } catch (error) {
+        console.error("[UserForm] Error al cargar módulos del rol:", error);
+        setRoleModules([]);
+        setValue("userPermissions", [], { shouldValidate: true });
+      }
+    };
+
+    fetchRoleDetails();
+  }, [watch("rol_id")]);
 
   // Usar hook de estructura
   const {
@@ -383,26 +460,12 @@ export function UserForm({
                   render={({ field }) => (
                     <RoleSelector
                       selectedRole={field.value}
-                      onChange={(roleId, modules) => {
-                        // Actualizar el rol seleccionado
+                      onChange={(roleId) => {
+                        console.log("[UserForm] Rol seleccionado:", roleId);
                         field.onChange(roleId);
 
-                        // Si hay módulos, actualizar los permisos
-                        if (modules && modules.length > 0) {
-                          // Extraer los IDs de los módulos
-                          const moduleIds = modules.map(
-                            (module) => module.module_id
-                          );
-                          // Actualizar el campo de permisos de usuario
-                          setValue("userPermissions", moduleIds, {
-                            shouldValidate: true,
-                          });
-                        } else {
-                          // Si no hay módulos, limpiar los permisos
-                          setValue("userPermissions", [], {
-                            shouldValidate: true,
-                          });
-                        }
+                        // Guardar el valor en el formulario
+                        setValue("rol_id", roleId, { shouldValidate: true });
                       }}
                       disabled={isSavingInternal}
                       className={`input-field ${
@@ -426,13 +489,19 @@ export function UserForm({
                     Acceso a Módulos
                   </h3>
                   <div className="mt-4">
-                    {/* Agregar una nota informativa cuando hay un rol seleccionado */}
-                    {watch("rol_id") && (
+                    {watch("rol_id") ? (
+                      <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <span>
+                          Módulos asignados según el rol seleccionado. Estos
+                          módulos son de solo lectura.
+                        </span>
+                      </div>
+                    ) : (
                       <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-center">
                         <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                         <span>
-                          Los módulos se asignan automáticamente según el rol
-                          seleccionado. No pueden ser modificados manualmente.
+                          Seleccione un rol para ver los módulos asignados.
                         </span>
                       </div>
                     )}
@@ -441,13 +510,10 @@ export function UserForm({
                       control={control}
                       render={({ field }) => (
                         <UserModuleSelector
-                          availableModules={availableModules}
+                          availableModules={roleModules}
                           selectedPermissions={field.value || []}
-                          onChange={(selectedIds) =>
-                            field.onChange(selectedIds)
-                          }
-                          // Deshabilitar si hay un rol seleccionado o si el formulario está guardando
-                          disabled={isSavingInternal || !!watch("rol_id")}
+                          onChange={() => {}} // Función vacía porque es de solo lectura
+                          disabled={true}
                         />
                       )}
                     />
@@ -687,7 +753,7 @@ export function UserForm({
                     </div>
 
                     {/* Switch para asignar estructura más tarde */}
-                    <div className="pt-2">
+                    {/* <div className="pt-2">
                       <Controller
                         name="assignStructureLater"
                         control={control}
@@ -712,7 +778,7 @@ export function UserForm({
                           </label>
                         )}
                       />
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>

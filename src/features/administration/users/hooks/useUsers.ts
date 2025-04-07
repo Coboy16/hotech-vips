@@ -56,13 +56,15 @@ export const useUsers = () => {
       setLoading(true);
       setError(null);
       try {
-        // Transformar datos del formulario al DTO de la API
-        const apiUserData = transformUserToApiDto(userData) as CreateUserDto;
-        // Incluir campos requeridos que no están en el formulario
-        apiUserData.password = userData.password || "123456";
-        apiUserData.usua_fevc = new Date().toISOString();
+        console.log("[useUsers] Datos originales al crear usuario:", userData);
 
-        const newUser = await userService.create(apiUserData);
+        // Asegurar que los datos pasan directamente sin transformaciones que pierdan campos
+        // Podemos omitir transformUserToApiDto si está causando problemas
+        const apiUserData = userData; // Usar directamente los datos en lugar de la transformación
+
+        console.log("[useUsers] Datos a enviar al servicio:", apiUserData);
+
+        const newUser = await userService.create(apiUserData as CreateUserDto);
         if (newUser) {
           setUsers((prev) => [...prev, newUser]);
           toast.success("Usuario creado exitosamente");

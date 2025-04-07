@@ -114,3 +114,17 @@ export interface UserResponse {
   data: ApiUser | ApiUser[];
   error?: string;
 }
+export interface UserFormData {
+  password?: string;
+  usua_corr: string;
+  usua_noco: string;
+  usua_nomb: string;
+  usua_fevc?: string;
+  usua_fein?: string;
+  usua_feve?: string;
+  usua_stat?: boolean;
+  rol_id: string;
+  company_license_id?: string;
+  structure_id?: string;
+  structure_type?: string;
+}

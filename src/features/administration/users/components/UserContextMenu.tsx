@@ -1,12 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import {
-  UserCog,
-  Key,
-  History,
-  FileText,
-  XCircle,
-  CheckCircle2,
-} from "lucide-react";
+import { UserCog, Key, XCircle, CheckCircle2 } from "lucide-react";
 import { User } from "../types/user";
 
 interface UserContextMenuProps {
@@ -26,9 +19,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onClose,
   onEdit,
   onResetPassword,
-  onViewHistory,
   onChangeStatus,
-  onExportData,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +72,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         </button>
       )}
 
-      {onViewHistory && (
+      {/* {onViewHistory && (
         <button
           onClick={() => {
             onViewHistory(user);
@@ -92,9 +83,9 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           <History className="w-4 h-4 mr-2 text-indigo-500" />
           Historial de actividad
         </button>
-      )}
+      )} */}
 
-      {onExportData && (
+      {/* {onExportData && (
         <button
           onClick={() => {
             onExportData(user);
@@ -105,7 +96,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
           <FileText className="w-4 h-4 mr-2 text-green-500" />
           Exportar datos
         </button>
-      )}
+      )} */}
 
       {onChangeStatus && (
         <>
