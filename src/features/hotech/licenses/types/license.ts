@@ -1,5 +1,3 @@
-// Ahora contendrá tipos específicos de este feature, como Props de componentes locales
-
 import { ColumnDefinition } from "../../../../components/common";
 import { License } from "../../../../model/license";
 

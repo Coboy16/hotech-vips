@@ -132,7 +132,7 @@ export const menuItems: MenuItem[] = [
       },
       {
         id: "perfil",
-        label: "Perfiles",
+        label: "Roles",
         icon: Users,
         path: "/administration/perfil",
         modulePermission: "perfiles",

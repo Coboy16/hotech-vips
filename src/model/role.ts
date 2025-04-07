@@ -2,6 +2,7 @@
  * Representa un Rol como viene de la API
  */
 export interface ApiRole {
+  id: string;
   rol_id: string;
   nombre: string;
   created_at?: string; // Opcional, según la respuesta del GET

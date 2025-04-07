@@ -25,6 +25,10 @@ export interface User {
   twoFactorEnabled?: boolean;
   endDate?: string;
   password?: string;
+  rol_id?: string; // Debe venir de apiUser.rol_id
+  structure_id?: string | null; // Debe venir de apiUser.structure_id o userStructures
+  structure_type?: string | null; // Debe venir de apiUser.structure_type o userStructures
+  company_license_id?: string | null; // Debe venir de apiUser.company_license_id
 }
 
 export interface Permission {
@@ -63,6 +67,8 @@ export interface ApiUser {
   };
   userPermissions?: UserPermission[];
   userStructures?: UserStructure[];
+  is_admin_hotech?: boolean; // Añadir si es relevante
+  has_logged_in?: boolean; // Añadir si es relevante
 }
 
 export interface UserPermission {

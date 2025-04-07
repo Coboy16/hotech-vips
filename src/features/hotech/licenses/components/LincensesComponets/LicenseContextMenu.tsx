@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { FileEdit, Trash2, AlertTriangle, Clock, UserPlus } from "lucide-react";
+import { FileEdit, Trash2, AlertTriangle, Clock } from "lucide-react";
 import { License } from "../../../../../model/license";
 
 interface LicenseContextMenuProps {
@@ -22,7 +22,6 @@ const LicenseContextMenu: React.FC<LicenseContextMenuProps> = ({
   onDelete,
   onRenew,
   onHistory,
-  onOpenUserForm,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -51,17 +50,6 @@ const LicenseContextMenu: React.FC<LicenseContextMenuProps> = ({
       className="absolute z-10 right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1"
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        onClick={() => {
-          onOpenUserForm(license); // Llama a la nueva función
-          onClose();
-        }}
-        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-      >
-        <UserPlus className="w-4 h-4 mr-2 text-green-500" />{" "}
-        {/* Ícono para crear usuario */}
-        Crear usuario
-      </button>
       <button
         onClick={() => {
           onEdit(license);

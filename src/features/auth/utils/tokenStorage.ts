@@ -4,6 +4,7 @@ export const TOKEN_KEY = "auth_token";
 export const USER_KEY = "user_data";
 export const SESSION_TYPE_KEY = "session_type";
 export const LICENSE_ID_KEY = "license_id";
+export const STRUCTURE_ID_KEY = "structure_id";
 
 // Tipos de almacenamiento
 export enum StorageType {
@@ -122,6 +123,37 @@ export const tokenStorage = {
 
     return null;
   },
+  /**
+   * Guarda el ID de la estructura del usuario
+   * @param structureId ID de la estructura a guardar
+   * @param storageType Tipo de almacenamiento (local o sesión)
+   */
+  setStructureId(
+    structureId: string,
+    storageType: StorageType = StorageType.LOCAL
+  ): void {
+    console.log(
+      `[tokenStorage] Guardando structure_id: ${structureId} en ${storageType}`
+    );
+    // Guardar en el mismo almacenamiento que el token
+    if (storageType === StorageType.SESSION) {
+      sessionStorage.setItem(STRUCTURE_ID_KEY, structureId);
+    } else {
+      localStorage.setItem(STRUCTURE_ID_KEY, structureId);
+    }
+  },
+
+  /**
+   * Obtiene el ID de la estructura del usuario
+   */
+  getStructureId(): string | null {
+    const storageType = this.getStorageType(); // Determina dónde buscar
+    const storage =
+      storageType === StorageType.SESSION ? sessionStorage : localStorage;
+    const structureId = storage.getItem(STRUCTURE_ID_KEY);
+    // console.log(`[tokenStorage] Obteniendo structure_id de ${storageType}: ${structureId ?? 'No encontrado'}`);
+    return structureId;
+  },
 
   /**
    * Guarda los datos del usuario
@@ -183,11 +215,13 @@ export const tokenStorage = {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(SESSION_TYPE_KEY);
     localStorage.removeItem(LICENSE_ID_KEY);
+    localStorage.removeItem(STRUCTURE_ID_KEY);
 
     // Limpiar sessionStorage
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(LICENSE_ID_KEY);
+    sessionStorage.removeItem(STRUCTURE_ID_KEY);
 
     console.log("[tokenStorage] Datos de sesión limpiados");
   },

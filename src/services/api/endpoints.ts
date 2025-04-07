@@ -36,10 +36,11 @@ export const COUNTRY_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   BASE: "/users",
   DETAIL: (id: string) => `/users/${id}`,
+  BY_LICENSE: (licenseId: string) => `/users/license/${licenseId}`,
   UPDATE: (id: string) => `/users/${id}`,
   DELETE: (id: string) => `/users/${id}`,
-  UPDATE_PASSWORD: (id: string) => `/users/password/${id}`,
-  DELETE_BY_EMAIL: (email: string) => `/users/${email}`,
+  UPDATE_PASSWORD: (uuid: string) => `/users/password/${uuid}`,
+  DELETE_BY_EMAIL: (email: string) => `/users/${encodeURIComponent(email)}`,
 };
 /**
  * Endpoints relacionados con licencias de empresas
@@ -55,6 +56,7 @@ export const LICENSE_ENDPOINTS = {
 
 export const MODULE_ENDPOINTS = {
   BASE: "/modules",
+  DETAIL: (id: string) => `/modules/${id}`,
 };
 /**
  * Endpoints relacionados con roles
@@ -62,7 +64,8 @@ export const MODULE_ENDPOINTS = {
 export const ROLE_ENDPOINTS = {
   // Añadido
   BASE: "/roles",
-  DETAIL: (id: string) => `/roles/${id}`, // Si existe
+  BY_LICENSE: (licenseId: string) => `/roles/license/${licenseId}`,
+  DETAIL: (id: string) => `/roles/${id}`,
 };
 /**
  * Endpoints relacionados con la estructura organizacional

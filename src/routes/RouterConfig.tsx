@@ -31,6 +31,11 @@ const { UsersScreen } = lazyImport(
   () => import("../features/administration/users/UsersScreen"),
   "UsersScreen" // Nombre de la exportación nombrada
 );
+
+const { RolesScreen } = lazyImport(
+  () => import("../features/administration/roles/index"),
+  "RolesScreen" // Nombre de la exportación nombrada
+);
 // Structure
 const { StructureScreen } = lazyImport(
   () => import("../features/system_configuration/companies/StructureScreen"),
@@ -129,6 +134,14 @@ export const RouterConfig: React.FC = () => {
             element={
               <SuspenseWrapper>
                 <StructureScreen />
+              </SuspenseWrapper>
+            }
+          />
+          <Route
+            path="/administration/perfil"
+            element={
+              <SuspenseWrapper>
+                <RolesScreen />
               </SuspenseWrapper>
             }
           />

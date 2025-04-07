@@ -73,9 +73,15 @@ export const authService = {
         // Extraer y guardar el license_id
         if (userData.userStructures && userData.userStructures.length > 0) {
           const licenseId = userData.userStructures[0].company_license_id;
+          const firstStructure = userData.userStructures[0];
           if (licenseId) {
             tokenStorage.setLicenseId(licenseId, storageType);
             console.log("[authService] License ID guardado:", licenseId);
+          }
+          const structureId = firstStructure.structure_id;
+          if (structureId) {
+            tokenStorage.setStructureId(structureId, storageType); // Usamos la nueva función
+            console.log("[authService] Structure ID guardado:", structureId);
           }
         }
 

@@ -19,7 +19,7 @@ import { ModuleSelector } from "./ModuleSelector";
 
 // Hooks personalizados
 import { useLicenseForm } from "../../hooks/licenseFrom/useLicenseForm";
-import { useFormTabs } from "../../hooks/userFrom/useFormTabs";
+import { useState } from "react";
 
 interface LicenseFormProps {
   license?: License | null;
@@ -35,6 +35,24 @@ export function LicenseForm({
   isLoading = false,
 }: LicenseFormProps) {
   // Uso del hook para gestionar pestañas
+  function useFormTabs<T extends string = string>(initialTab: T) {
+    const [activeTab, setActiveTab] = useState<T>(initialTab);
+
+    const changeTab = (tab: T) => {
+      setActiveTab(tab);
+    };
+
+    const isTabActive = (tab: T): boolean => {
+      return activeTab === tab;
+    };
+
+    return {
+      activeTab,
+      setActiveTab: changeTab,
+      isTabActive,
+    };
+  }
+
   const { activeTab, setActiveTab } = useFormTabs<"basic" | "contact">("basic");
 
   // Uso del hook para gestionar el formulario
