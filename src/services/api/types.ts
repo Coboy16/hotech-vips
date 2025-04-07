@@ -1,3 +1,5 @@
+// import { ApiUser } from "../../features/administration/users/types/user";
+
 /**
  * Configuración por entorno para el cliente API
  */
@@ -91,11 +93,12 @@ export interface ApiClientInterface {
   createAbortController(): AbortController;
 }
 
-export interface ApiResponse<T> {
+export interface ApiResponse<T = unknown> {
   statusCode: number;
   message: string;
-  data?: T; // La data puede ser un objeto, un array o undefined/null en algunos casos
+  // data?: ApiUser; // La data puede ser un objeto, un array o undefined/null en algunos casos
   error?: string; // Campo de error opcional
+  data: T;
 }
 
 export interface ModuleFromApi {

@@ -1,3 +1,3 @@
 export * from "./licenseService";
 export * from "./moduleService";
-export * from "./roleService";
+export * from "../../../administration/users/services/roleService";

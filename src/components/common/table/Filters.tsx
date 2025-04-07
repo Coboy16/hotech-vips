@@ -1,5 +1,5 @@
-import React from 'react';
-import { Search, FilterX, LayoutGrid, List } from 'lucide-react';
+import React from "react";
+import { Search, FilterX, LayoutGrid, List } from "lucide-react";
 
 // Tipos para las opciones de filtro
 interface FilterOption {
@@ -13,13 +13,13 @@ interface FiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  
+
   // Estado y manejo de los filtros seleccionados
   filterValues: {
     [key: string]: string;
   };
   onFilterChange: (filterName: string, value: string) => void;
-  
+
   // Opciones para los filtros
   filterOptions: {
     [key: string]: {
@@ -27,11 +27,11 @@ interface FiltersProps {
       options: FilterOption[];
     };
   };
-  
+
   // Manejo de la vista (lista/cuadrícula)
-  viewMode: 'list' | 'grid';
-  onViewModeChange: (mode: 'list' | 'grid') => void;
-  
+  viewMode: "list" | "grid";
+  onViewModeChange: (mode: "list" | "grid") => void;
+
   // Restablecer todos los filtros
   onResetFilters: () => void;
 }
@@ -39,13 +39,13 @@ interface FiltersProps {
 const Filters: React.FC<FiltersProps> = ({
   searchTerm,
   onSearchChange,
-  searchPlaceholder = 'Buscar...',
+  searchPlaceholder = "Buscar...",
   filterValues,
   onFilterChange,
   filterOptions,
   viewMode,
   onViewModeChange,
-  onResetFilters
+  onResetFilters,
 }) => {
   return (
     <div className="bg-white p-4 rounded-lg shadow mb-6">
@@ -61,13 +61,13 @@ const Filters: React.FC<FiltersProps> = ({
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        
+
         <div className="flex flex-wrap gap-4 items-center">
           {/* Selectores de filtro */}
           {Object.keys(filterOptions).map((filterKey) => (
             <div key={filterKey}>
               <select
-                value={filterValues[filterKey] || ''}
+                value={filterValues[filterKey] || ""}
                 onChange={(e) => onFilterChange(filterKey, e.target.value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
@@ -79,7 +79,7 @@ const Filters: React.FC<FiltersProps> = ({
               </select>
             </div>
           ))}
-          
+
           {/* Botón para restablecer filtros */}
           <button
             onClick={onResetFilters}
@@ -89,26 +89,26 @@ const Filters: React.FC<FiltersProps> = ({
             <FilterX className="mr-2 h-5 w-5" />
             Restablecer
           </button>
-          
+
           {/* Toggle de vista (lista/cuadrícula) */}
           <div className="flex border border-gray-300 rounded-lg overflow-hidden">
             <button
-              onClick={() => onViewModeChange('list')}
+              onClick={() => onViewModeChange("list")}
               className={`px-3 py-2 flex items-center ${
-                viewMode === 'list'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
               title="Vista de lista"
             >
               <List className="h-5 w-5" />
             </button>
             <button
-              onClick={() => onViewModeChange('grid')}
+              onClick={() => onViewModeChange("grid")}
               className={`px-3 py-2 flex items-center ${
-                viewMode === 'grid'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
               title="Vista de cuadrícula"
             >

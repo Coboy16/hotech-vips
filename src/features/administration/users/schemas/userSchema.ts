@@ -123,5 +123,4 @@ export const userFormValidationSchema = z
     console.log("[userSchema] Validación superRefine completada.");
   });
 
-// Tipo derivado
 export type UserFormData = z.infer<typeof userFormValidationSchema>;

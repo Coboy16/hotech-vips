@@ -11,8 +11,6 @@ import LicenseGridDisplay from "./components/LincensesComponets/LicenseGridDispl
 import { LicenseForm } from "./components/LincensesComponets/LicenseForm";
 import LicenseRenewalModal from "./components/LincensesComponets/LicenseRenewalModal";
 import DeleteLicenseModal from "./components/LincensesComponets/DeleteLicenseModal";
-// import LicenseHistoryModal from "./components/LicenseHistoryModal";
-import { UserForm } from "./components/userComponets/UserForm";
 
 // Hook personalizado principal que maneja toda la lógica
 import { useLicensesContainer } from "./hooks/licensesScreen/useLicensesContainer";
@@ -58,13 +56,13 @@ export function LicensesScreen() {
     renewalModal,
     deleteModal,
     // historyModal,
-    userFormModal,
+    // userFormModal,
 
     // Menú contextual
     contextMenu,
 
     // Usuarios
-    licenseUsers,
+    // licenseUsers,
 
     // Estado de procesamiento
     isSaving,
@@ -82,7 +80,7 @@ export function LicensesScreen() {
 
     // Handlers de usuario
     handleOpenUserForm,
-    handleSaveUser,
+    // handleSaveUser,
   } = useLicensesContainer();
 
   // Obtener licencias filtradas y ordenadas
@@ -270,7 +268,7 @@ export function LicensesScreen() {
       )} */}
 
       {/* --- Modal de Formulario de Usuario --- */}
-      {userFormModal.isOpen && licenseUsers.selectedLicenseForUserCreation && (
+      {/* {userFormModal.isOpen && licenseUsers.selectedLicenseForUserCreation && (
         <UserForm
           onClose={() => {
             userFormModal.close();
@@ -284,7 +282,7 @@ export function LicensesScreen() {
           }}
           availableModules={licenseUsers.modulesForSelectedLicense}
         />
-      )}
+      )} */}
     </div>
   );
 }

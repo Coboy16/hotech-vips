@@ -6,7 +6,6 @@ import {
   LicenseFormData,
   RenewLicenseFormData,
 } from "../../schemas/licenseSchema";
-import { UserFormData } from "../../schemas/userSchema";
 
 import { useLicenses } from "./useLicenses";
 import { useLicenseActions } from "./useLicenseActions";
@@ -187,23 +186,6 @@ export function useLicensesContainer() {
     }
   };
 
-  // Guardar usuario (ya era asíncrono)
-  const handleSaveUser = async (formData: UserFormData) => {
-    console.log("[useLicensesContainer] Intentando guardar usuario...");
-    // Llama al handler en useLicenseUsers
-    const success = await licenseUsers.handleSaveUser(formData);
-    if (success) {
-      console.log(
-        "[useLicensesContainer] Guardado de usuario exitoso, cerrando modal."
-      );
-      userFormModal.close();
-      // No necesitamos llamar a handleCloseUserForm aquí si se llama dentro de UserForm en su 'onClose' prop
-    } else {
-      console.error("[useLicensesContainer] Guardado de usuario falló.");
-      // El toast de error ya lo debería mostrar handleSaveUser
-    }
-  };
-
   // ---- Hook para columnas de tabla ----
   const { columns } = useLicenseColumns({
     onEdit: handleEdit,
@@ -272,7 +254,6 @@ export function useLicensesContainer() {
 
     // Handlers de usuario
     handleOpenUserForm, // Ya es async
-    handleSaveUser,
 
     // Configuración
     permissionToLabelMap,

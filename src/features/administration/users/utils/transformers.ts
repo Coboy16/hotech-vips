@@ -3,20 +3,19 @@ import { ApiUser, CreateUserDto, Permission, User } from "../types/user";
 /**
  * Transforma un usuario de la API al formato de la aplicación
  */
-// En transformers.ts
 export const transformApiUserToUser = (apiUser: ApiUser): User => {
-  // Verificar que apiUser existe
   if (!apiUser) {
     console.error(
       "[transformApiUserToUser] Error: apiUser es null o undefined"
     );
-    // Devolver un objeto de usuario vacío o con valores por defecto
+    // Devolver un objeto de usuario vacío o con valores por defecto MÁS COMPLETO
     return {
       id: "",
       firstName: "",
       lastName: "",
       email: "",
       role: "unknown",
+      rol_id: undefined, // FIX: Añadido
       departments: [],
       permissions: {
         approveHours: false,
@@ -25,58 +24,74 @@ export const transformApiUserToUser = (apiUser: ApiUser): User => {
       },
       lastLogin: "",
       status: "inactive",
+      startDate: undefined,
+      endDate: undefined,
+      createdAt: undefined,
+      phone: undefined,
+      structure_id: null, // FIX: Añadido
+      structure_type: null, // FIX: Añadido
+      company_license_id: null, // FIX: Añadido
     };
   }
 
   console.log("[transformApiUserToUser] Datos del ApiUser:", apiUser);
 
-  // Procesar el nombre con manejo seguro para null/undefined
   let firstName = "";
   let lastName = "";
-
   if (apiUser.usua_nomb) {
     const nameParts = apiUser.usua_nomb.split(" ");
     firstName = nameParts[0] || "";
     lastName = nameParts.slice(1).join(" ") || "";
   }
 
-  // Mapear roleName de manera segura
   const roleName = apiUser.role?.nombre?.toLowerCase() || "unknown";
 
-  // Mapear departments de manera segura
-  const departments =
-    apiUser.userStructures?.map((structure) => structure.structure_type) || [];
+  // FIX: Extraer estructura de userStructures si existe, si no, de los campos raíz
+  const primaryStructure =
+    apiUser.userStructures && apiUser.userStructures.length > 0
+      ? apiUser.userStructures[0]
+      : {
+          structure_id: apiUser.structure_id,
+          structure_type: apiUser.structure_type,
+        };
 
-  // Mapear permisos de manera segura
-  const permissions = {
-    approveHours: false,
-    modifyChecks: false,
-    manageReports: false,
-    adminAccess: roleName === "admin",
+  // FIX: Mapear 'departments' basado en el tipo de estructura (si existe)
+  const departments = primaryStructure?.structure_type
+    ? [primaryStructure.structure_type]
+    : [];
+
+  // Mapear permisos (lógica simplificada, ajustar si es necesario)
+  // Esta parte sigue siendo un placeholder. Necesitarías lógica real basada en IDs/descripciones.
+  const permissions: Permission = {
+    approveHours: false, // Placeholder
+    modifyChecks: false, // Placeholder
+    manageReports: false, // Placeholder
+    adminAccess: roleName === "admin", // Ejemplo basado en rol
   };
+  // Aquí deberías procesar `apiUser.userPermissions` para determinar los valores de `permissions`
 
-  // Si hay userPermissions, procesarlos
-  if (apiUser.userPermissions && apiUser.userPermissions.length > 0) {
-    // Procesar permisos según tu lógica de negocio
-  }
-
+  // FIX: Añadir mapeo de los nuevos campos
   return {
     id: apiUser.user_id || "",
     firstName,
     lastName,
     email: apiUser.usua_corr || "",
     role: roleName,
-    departments,
+    rol_id: apiUser.rol_id, // FIX: Mapear rol_id
+    departments, // Mapeado desde structure_type
     permissions,
-    lastLogin: apiUser.usua_fevc || "",
+    lastLogin: apiUser.usua_fevc || "", // Asumiendo fevc es last login/creation
     status: apiUser.usua_stat ? "active" : "inactive",
     startDate: apiUser.usua_fein,
     endDate: apiUser.usua_feve,
-    createdAt: apiUser.usua_fevc,
-    // Campos opcionales
-    avatar: undefined,
+    createdAt: apiUser.usua_fevc, // Asumiendo fevc es creation date
     phone: apiUser.usua_noco,
-    twoFactorEnabled: false,
+    structure_id: primaryStructure?.structure_id, // FIX: Mapear structure_id
+    structure_type: primaryStructure?.structure_type, // FIX: Mapear structure_type
+    company_license_id: apiUser.company_license_id, // FIX: Mapear license_id
+    // Campos opcionales/no mapeados actualmente
+    avatar: undefined,
+    twoFactorEnabled: false, // Podría venir de is_admin_hotech o has_logged_in?
   };
 };
 
@@ -86,28 +101,21 @@ export const transformApiUserToUser = (apiUser: ApiUser): User => {
 export const mapPermissions = (
   userPermissions: Array<{
     permission_id: string;
-    permission?: { descripcion?: string }; // Añadir tipo para el objeto anidado si existe
+    permission?: { descripcion?: string };
   }>,
-  roleName: string // Recibimos el rol
+  roleName: string
 ): Permission => {
   const userPermissionDetails = userPermissions.map((up) =>
     up.permission?.descripcion?.toLowerCase()
   );
-
-  // Lógica MEJORADA para mapeo de permisos (AJUSTAR según tus descripciones/IDs reales)
-  // Esto es un ejemplo, necesitas adaptarlo a tus nombres/IDs de permisos específicos
   const permissions: Permission = {
-    // Ejemplo: buscar por descripción (ajusta las cadenas exactas)
     approveHours: userPermissionDetails.includes("aprobar horas"), // AJUSTAR
     modifyChecks: userPermissionDetails.includes("modificar registros"), // AJUSTAR
     manageReports: userPermissionDetails.includes("administrar reportes"), // AJUSTAR
-
-    // Lógica para adminAccess (ej: si el rol es 'admin' O tiene un permiso específico)
     adminAccess:
       roleName === "admin" ||
       userPermissionDetails.includes("acceso administrador"), // AJUSTAR
   };
-
   return permissions;
 };
 
