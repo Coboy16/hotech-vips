@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import toast from "react-hot-toast";
 import { makeRequest } from "../../../../services/api";
 import {
@@ -189,7 +190,7 @@ export const userService = {
     );
 
     const response = await makeRequest<UserResponse>(
-      "put",
+      "patch",
       USER_ENDPOINTS.UPDATE_PASSWORD(id),
       passwordData
     );
@@ -236,21 +237,37 @@ export const userService = {
    */
   async deleteByEmail(email: string): Promise<boolean> {
     console.log(`[userService] Eliminando usuario con email: ${email}`);
-
-    const response = await makeRequest<UserResponse>(
-      "delete",
-      USER_ENDPOINTS.DELETE_BY_EMAIL(email)
-    );
-
-    if (response && response.statusCode === 200) {
-      console.log(`[userService] Usuario con email ${email} eliminado.`);
-      return true;
-    } else {
-      console.error(
-        `[userService] Error al eliminar usuario con email ${email}:`,
-        response?.message || "Respuesta inválida"
+    try {
+      const response = await makeRequest<{
+        statusCode: number;
+        message: string;
+      }>( // Ajusta el tipo esperado si es necesario
+        "delete",
+        USER_ENDPOINTS.DELETE_BY_EMAIL(email) // Usa el endpoint correcto
       );
-      return false;
+      // La API ahora devuelve 200 en éxito según tu doc
+      if (response && response.statusCode === 200) {
+        console.log(`[userService] Usuario con email ${email} eliminado.`);
+        return true;
+      } else {
+        console.error(
+          `[userService] Error al eliminar usuario con email ${email}:`,
+          response?.message ||
+            `Status Code: ${response?.statusCode}` ||
+            "Respuesta inválida"
+        );
+        // Lanza un error para que el hook lo capture y muestre en toast
+        throw new Error(
+          response?.message || "Error al eliminar el usuario desde la API."
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        `[userService] Excepción al eliminar usuario ${email}:`,
+        error
+      );
+      // Relanza el error para que el hook lo maneje
+      throw error;
     }
   },
 };
