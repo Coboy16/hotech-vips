@@ -129,7 +129,9 @@ export const userService = {
 
         // Ahora sabemos que la respuesta tiene la estructura data.user
         if (response.data && response.data.user) {
-          return transformApiUserToUser(response.data.user);
+          return transformApiUserToUser(
+            response.data.user as unknown as ApiUser
+          );
         } else {
           console.warn(
             "[userService] Respuesta exitosa pero sin datos de usuario:",

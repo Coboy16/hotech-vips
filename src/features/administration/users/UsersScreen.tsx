@@ -6,8 +6,8 @@ import {
   Building2,
   Key,
   UserCog,
-  XCircle,
-  CheckCircle2,
+  // XCircle,
+  // CheckCircle2,
   MoreVertical,
 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
@@ -26,7 +26,6 @@ import UserAvatar from "./components/UserAvatar";
 import { tokenStorage } from "../../auth/utils/tokenStorage";
 import { LicenseInfoForUserForm } from "../../../model/user";
 import toast from "react-hot-toast";
-// Importar el formulario de cambio/reseteo de contraseña
 import PasswordChangeForm from "./components/changePassword/passwordChangeSchema";
 import { DeleteUserModal } from "./components/DeleteUserModal";
 
@@ -71,32 +70,34 @@ export function UsersScreen() {
     loadUsers,
     createUser,
     updateUser,
-    updatePassword, // Usaremos esta función del hook
+    updatePassword,
     setSelectedUser,
     deleteUserByEmail,
   } = useUsers();
 
-  // --- Filtrado (sin cambios) ---
-  const filteredUsers = users.filter((user) => {
-    if (!user) {
-      console.warn(
-        "Se encontró un usuario nulo/undefined durante el filtrado."
-      );
-      return false;
-    }
-    const matchesSearch =
-      `${user.firstName} ${user.lastName}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === "all" || user.role === filterRole;
-    const matchesStatus =
-      filterStatus === "all" || user.status === filterStatus;
-    const matchesDepartment =
-      filterDepartment === "all" ||
-      (user.departments && user.departments.includes(filterDepartment));
-    return matchesSearch && matchesRole && matchesStatus && matchesDepartment;
-  });
+  // --- Filtrado (MODIFICADO para excluir delete@delete.com) ---
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      // Primero excluimos usuarios con email delete@delete.com
+      if (!user || user.email === "delete@delete.com") {
+        return false;
+      }
+
+      // Luego aplicamos el resto de los filtros
+      const matchesSearch =
+        `${user.firstName} ${user.lastName}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = filterRole === "all" || user.role === filterRole;
+      const matchesStatus =
+        filterStatus === "all" || user.status === filterStatus;
+      const matchesDepartment =
+        filterDepartment === "all" ||
+        (user.departments && user.departments.includes(filterDepartment));
+      return matchesSearch && matchesRole && matchesStatus && matchesDepartment;
+    });
+  }, [users, searchTerm, filterRole, filterStatus, filterDepartment]);
 
   // --- Paginación (sin cambios) ---
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -148,7 +149,7 @@ export function UsersScreen() {
         return;
       }
       const userData = {
-        password: formData.password || undefined, // Enviar undefined si está vacío para no actualizar
+        password: formData.password || undefined,
         usua_corr: formData.usua_corr,
         usua_noco: formData.usua_noco || "000000000",
         usua_nomb: formData.usua_nomb,
@@ -167,8 +168,7 @@ export function UsersScreen() {
           tokenStorage.getLicenseId(),
         structure_id: formData.structure_id || tokenStorage.getStructureId(),
         structure_type: formData.structure_type || "company",
-        // Asegúrate de que los adapters envíen los módulos correctamente si es necesario
-        modules: formData.userPermissions, // Si el adapter lo pone en userPermissions
+        modules: formData.userPermissions,
       };
       console.log("[UsersScreen] Datos completos a enviar:", userData);
       let result;
@@ -200,9 +200,6 @@ export function UsersScreen() {
         );
         setShowForm(false);
         loadUsers();
-      } else {
-        // El hook ya muestra el error específico
-        // toast.error("No se pudo completar la operación.");
       }
     } catch (error) {
       console.error("[UsersScreen] Error al procesar el formulario:", error);
@@ -216,32 +213,28 @@ export function UsersScreen() {
       return;
     }
     console.log(`[UsersScreen] Confirmando eliminación para: ${email}`);
-    setIsDeletingUser(true); // Iniciar estado de carga
+    setIsDeletingUser(true);
     try {
-      const success = await deleteUserByEmail(email); // Llama al hook
+      const success = await deleteUserByEmail(email);
       if (success) {
-        // El hook ya actualiza la lista y muestra toast de éxito
-        handleCancelDelete(); // Cierra el modal en caso de éxito
+        handleCancelDelete();
       } else {
-        // El hook muestra toast de error
-        setIsDeletingUser(false); // Detener estado de carga si falla
+        setIsDeletingUser(false);
       }
     } catch (error) {
       console.error("[UsersScreen] Error durante handleConfirmDelete:", error);
       toast.error("Ocurrió un error inesperado al eliminar.");
-      setIsDeletingUser(false); // Detener estado de carga en caso de excepción
+      setIsDeletingUser(false);
     }
-    // No cerramos el modal aquí necesariamente, esperamos a que la operación termine.
-    // handleCancelDelete se llama ahora dentro del try/catch o si la operación es exitosa.
   };
 
   const handleCancelDelete = () => {
     setShowDeleteModal(false);
     setUserToDelete(null);
-    setIsDeletingUser(false); // Asegurar que el estado de carga se resetee
+    setIsDeletingUser(false);
   };
 
-  // --- Handlers de Filtros y Formulario (sin cambios relevantes) ---
+  // --- Handlers de Filtros y Formulario ---
   const handleFilterChange = (filterName: string, value: string) => {
     switch (filterName) {
       case "role":
@@ -256,18 +249,22 @@ export function UsersScreen() {
     }
     setCurrentPage(1);
   };
+
   const handleResetFilters = () => {
     setSearchTerm("");
     setFilterRole("all");
     setFilterStatus("all");
     setFilterDepartment("all");
     setCurrentPage(1);
+    setViewMode("list"); // Resetear a modo de lista al restablecer filtros
   };
+
   const handleEdit = (user: User) => {
     setSelectedUser(user);
     setShowForm(true);
     setContextMenuUser(null);
   };
+
   const handleCloseForm = () => {
     setSelectedUser(null);
     setShowForm(false);
@@ -278,22 +275,23 @@ export function UsersScreen() {
     e.stopPropagation();
     setContextMenuUser((prev) => (prev?.id === user.id ? null : user));
   };
+
   const handleCloseContextMenu = () => {
     setContextMenuUser(null);
   };
+
   const handleUserClick = (user: User) => {
-    handleEdit(user); // Clic en fila/tarjeta abre edición
+    handleEdit(user);
   };
 
-  // --- INICIO CAMBIO: Handler para abrir el modal de reseteo ---
   const handleOpenResetPasswordModal = (user: User) => {
     console.log(
       `[UsersScreen] Iniciando reseteo de contraseña para: ${user.email} (ID: ${user.id})`
     );
     if (user && user.id) {
-      setSelectedUserId(user.id); // Guardar el ID del usuario seleccionado
-      setShowPasswordForm(true); // Mostrar el modal
-      setContextMenuUser(null); // Cerrar menú contextual si estaba abierto
+      setSelectedUserId(user.id);
+      setShowPasswordForm(true);
+      setContextMenuUser(null);
     } else {
       console.error(
         "[UsersScreen] Intento de restablecer contraseña sin usuario válido."
@@ -303,12 +301,11 @@ export function UsersScreen() {
       );
     }
   };
-  // --- FIN CAMBIO ---
 
   const handleChangeStatus = async (user: User) => {
     const newStatus = user.status === "active" ? "inactive" : "active";
     await updateUser(user.id, { usua_stat: newStatus === "active" });
-    loadUsers(); // Recargar para reflejar el cambio
+    loadUsers();
     setContextMenuUser(null);
   };
 
@@ -320,6 +317,7 @@ export function UsersScreen() {
     user: "bg-gray-100 text-gray-800",
     unknown: "bg-yellow-100 text-yellow-800",
   };
+
   const getRoleLabel = (role: string) => {
     const safeRole = role ?? "unknown";
     if (safeRole === "unknown") return "Desconocido";
@@ -454,22 +452,21 @@ export function UsersScreen() {
             <UserCog className="w-5 h-5" />{" "}
           </button>
 
-          {/* --- INICIO CAMBIO: Botón Restablecer Contraseña --- */}
+          {/* Botón Restablecer Contraseña */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleOpenResetPasswordModal(user);
-            }} // Llamar al nuevo handler
+            }}
             className="text-amber-600 hover:text-amber-900"
             title="Restablecer contraseña"
           >
             {" "}
             <Key className="w-5 h-5" />{" "}
           </button>
-          {/* --- FIN CAMBIO --- */}
 
           {/* Botón Activar/Desactivar */}
-          <button
+          {/* <button
             onClick={(e) => {
               e.stopPropagation();
               handleChangeStatus(user);
@@ -486,7 +483,7 @@ export function UsersScreen() {
             ) : (
               <CheckCircle2 className="w-5 h-5" />
             )}
-          </button>
+          </button> */}
 
           {/* Botón Más Acciones (Context Menu) */}
           <button
@@ -508,7 +505,6 @@ export function UsersScreen() {
                 handleEdit(u);
                 handleCloseContextMenu();
               }}
-              // --- INICIO CAMBIO: Pasar handler de reseteo al Context Menu ---
               onResetPassword={(u) => {
                 handleOpenResetPasswordModal(u);
                 handleCloseContextMenu();
@@ -539,7 +535,6 @@ export function UsersScreen() {
         handleEdit(u);
         handleCloseContextMenu();
       }}
-      // --- INICIO CAMBIO: Pasar handler de reseteo al Context Menu ---
       onResetPassword={(u) => {
         handleOpenResetPasswordModal(u);
         handleCloseContextMenu();
@@ -669,9 +664,8 @@ export function UsersScreen() {
           </div>
         ) : (
           <div className="mt-6">
-            {/* --- INICIO CAMBIO: Pasar handler correcto a UserGrid --- */}
             <UserGrid
-              users={filteredUsers} // Pasar usuarios filtrados, no paginados (grid maneja su paginación)
+              users={filteredUsers}
               onCardClick={handleUserClick}
               onMenuClick={handleOpenContextMenu}
               contextMenuUser={contextMenuUser}
@@ -680,13 +674,10 @@ export function UsersScreen() {
               roleColors={roleColors}
               getRoleLabel={getRoleLabel}
               onResetPasswordClick={(user, e) => {
-                // Pasar la prop correcta
                 e.stopPropagation();
-                handleOpenResetPasswordModal(user); // Usar el handler que abre el modal
-                // handleCloseContextMenu(); // No es necesario si handleOpenResetPasswordModal ya lo hace
+                handleOpenResetPasswordModal(user);
               }}
             />
-            {/* Paginación para Grid se maneja dentro de UserGrid ahora */}
           </div>
         )}
       </div>
@@ -702,20 +693,16 @@ export function UsersScreen() {
         />
       )}
 
-      {/* --- INICIO CAMBIO: Modal Formulario Reseteo Contraseña --- */}
+      {/* Modal Formulario Reseteo Contraseña */}
       {showPasswordForm && (
         <PasswordChangeForm
-          userId={selectedUserId} // Pasar el ID del usuario seleccionado
+          userId={selectedUserId}
           onClose={() => {
             setShowPasswordForm(false);
-            setSelectedUserId(null); // Limpiar ID al cerrar
+            setSelectedUserId(null);
           }}
-          // Pasar el handler que realmente llama al hook/servicio
           onSubmit={async (userId, newPassword) => {
-            // La lógica de llamar a updatePassword está aquí
             const success = await updatePassword(userId, newPassword);
-            // El formulario se cerrará si tiene éxito desde su propio `processSubmit`
-            // Pero retornamos el éxito para que el form sepa si cerrar o no
             return success;
           }}
         />
@@ -725,7 +712,7 @@ export function UsersScreen() {
           user={userToDelete}
           onConfirmDelete={handleConfirmDelete}
           onCancel={handleCancelDelete}
-          isDeleting={isDeletingUser} // Pasar estado de carga
+          isDeleting={isDeletingUser}
         />
       )}
     </div>

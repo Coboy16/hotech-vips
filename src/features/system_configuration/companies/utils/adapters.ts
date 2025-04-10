@@ -146,7 +146,7 @@ export const transformApiNodeToUiNode = (
   apiNode: ApiNode,
   type: NodeType,
   parentId: string | null = null,
-  licenseId?: string | null,
+  _licenseId?: string | null,
   currentLevel: number = 1
 ): OrganizationalNode => {
   let commonData: Pick<OrganizationalNode, "id" | "name" | "status">;

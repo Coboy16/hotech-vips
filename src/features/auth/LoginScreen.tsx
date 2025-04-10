@@ -3,39 +3,13 @@ import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
-import { RecoveryModal } from "./components/RecoveryModal";
+import { RecoveryModal } from "./components/recovery/RecoveryModal";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { LoginCredentials } from "./types";
+import { loginSchema } from "./schemas/loginSchema";
 
-// --- Esquema de Validación con Zod ---
-const loginSchema = z.object({
-  email: z
-    .string({
-      required_error: "El correo electrónico es requerido.",
-      invalid_type_error: "El correo debe ser texto.",
-    })
-    .min(1, { message: "El correo electrónico es requerido." }) // No debe estar vacío
-    .email({ message: "Por favor, introduce un correo electrónico válido." })
-    .max(100, { message: "El correo no puede exceder los 100 caracteres." }) // Límite de longitud
-    .trim(), // Elimina espacios al inicio y final
-  password: z
-    .string({
-      required_error: "La contraseña es requerida.",
-      invalid_type_error: "La contraseña debe ser texto.",
-    })
-    .min(1, { message: "La contraseña es requerida." }) // No debe estar vacía
-    // Añade aquí reglas más específicas si las tienes (longitud, caracteres especiales, etc.)
-    // Ejemplo: .min(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
-    .max(100, {
-      message: "La contraseña no puede exceder los 100 caracteres.",
-    }), // Límite de longitud
-  // Zod no valida contra listas de contraseñas comunes, eso sería lógica adicional
-  rememberMe: z.boolean().optional(), // Checkbox es opcional
-});
-
-// --- Tipo Inferido del Formulario ---
 // RHF usará este tipo para el autocompletado y la validación
 type LoginFormInputs = z.infer<typeof loginSchema>;
 
@@ -48,16 +22,14 @@ export function LoginScreen() {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // --- Configuración de React Hook Form ---
   const {
-    register, // Función para registrar inputs
-    handleSubmit, // Función para envolver el manejador de envío
-    formState: { errors, isSubmitting }, // Estado del formulario: errores de validación y si se está enviando
-    setError, // Función para establecer errores manualmente (ej. desde la API)
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
   } = useForm<LoginFormInputs>({
-    resolver: zodResolver(loginSchema), // Usa Zod para validar
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      // Valores iniciales del formulario
       email: "",
       password: "",
       rememberMe: false,
@@ -65,7 +37,6 @@ export function LoginScreen() {
   });
 
   // --- Manejador de Envío del Formulario ---
-  // Se ejecuta SOLO si la validación de Zod es exitosa
   const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
     console.log("[LoginScreen] Datos del formulario validados:", {
       email: data.email,
@@ -362,12 +333,12 @@ export function LoginScreen() {
             </button>
 
             {/* Mensaje de prueba (Opcional, quitar en producción) */}
-            <div className="text-center text-xs text-gray-500 pt-2">
+            {/* <div className="text-center text-xs text-gray-500 pt-2">
               <p>
                 (Demo: <strong>admin@gmail.com</strong> / <strong>12345</strong>
                 )
               </p>
-            </div>
+            </div> */}
           </form>
         </div>
 
@@ -385,4 +356,4 @@ export function LoginScreen() {
   );
 }
 
-export default LoginScreen; // Exportación por defecto si es necesario
+export default LoginScreen;

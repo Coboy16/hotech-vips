@@ -24,6 +24,7 @@ export interface User {
   usua_feve: string;
   usua_stat: boolean;
   is_admin_hotech?: boolean;
+  has_logged_in: boolean;
   rol_id: string;
   role?: {
     rol_id: string;

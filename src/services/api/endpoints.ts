@@ -23,6 +23,15 @@ export const COMPANY_ENDPOINTS = {
 };
 
 /**
+ * Endpoints relacionados con el proceso de recuperación de contraseña
+ */
+export const RECOVERY_ENDPOINTS = {
+  GENERATE_OTP: "/email-otp/generate",
+  VALIDATE_OTP: "/email-otp/validate",
+  RESET_PASSWORD: "/users/password",
+};
+
+/**
  * Endpoints relacionados con países
  */
 export const COUNTRY_ENDPOINTS = {
@@ -35,6 +44,7 @@ export const COUNTRY_ENDPOINTS = {
  */
 export const USER_ENDPOINTS = {
   BASE: "/users",
+  UPDATE_PASSWORD_TOKEN: "/users/password",
   DETAIL: (id: string) => `/users/${id}`,
   BY_LICENSE: (licenseId: string) => `/users/license/${licenseId}`,
   UPDATE: (id: string) => `/users/${id}`,
