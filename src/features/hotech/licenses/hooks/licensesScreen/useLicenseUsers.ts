@@ -4,7 +4,7 @@ import { toast } from "react-hot-toast";
 import { licenseService } from "../../services/licenseService";
 // import { userService } from "../../services/userService";
 import { License, ApiLicense } from "../../../../../model/license";
-import { AvailableModuleOption } from "../../components/userComponets/UserModuleSelector";
+import { AvailableModuleOption } from "../../../../administration/users/components/userComponets/UserModuleSelector";
 
 export interface UseLicenseUsersProps {
   permissionToLabelMap: Record<string, string>;

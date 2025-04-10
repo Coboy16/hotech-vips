@@ -20,6 +20,9 @@ export const roleService = {
 
     console.log("[roleService] Solicitando roles a la API...");
     const licenseId = tokenStorage.getLicenseId();
+    console.log(`[licenseId]`);
+    console.log(`[licenseId] ${licenseId}`);
+    console.log(`[licenseId]`);
 
     // 2. Verificar si se obtuvo el licenseId
     if (!licenseId) {

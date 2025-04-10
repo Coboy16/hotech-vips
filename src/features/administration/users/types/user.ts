@@ -1,4 +1,5 @@
 export interface RegisterResponse {
+  user: User;
   statusCode: number;
   message: string;
   data?: {
@@ -17,6 +18,7 @@ export interface User {
   permissions: Permission;
   lastLogin: string;
   status: "active" | "inactive";
+  usua_stat?: boolean;
   avatar?: string;
   phone?: string;
   createdAt?: string;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { UserCog, Key, XCircle, CheckCircle2, Trash2 } from "lucide-react"; // Añadir Trash2
+import { UserCog, Key, Trash2 } from "lucide-react"; // Añadir Trash2
+// import { UserCog, Key, XCircle, CheckCircle2, Trash2 } from "lucide-react"; // Añadir Trash2
 import { User } from "../types/user";
 
 interface UserContextMenuProps {
@@ -20,7 +21,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
   onClose,
   onEdit,
   onResetPassword,
-  onChangeStatus,
+  // onChangeStatus,
   onDeleteRequest, // <--- Recibir la nueva prop
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,18 +65,18 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
         </button>
       )}
 
-      {onChangeStatus && (
+      {/* {onChangeStatus && (
         <>
           <div className="border-t border-gray-100 my-1"></div>
           <button
             onClick={() => onChangeStatus(user)}
             className={`w-full text-left px-4 py-2 text-sm flex items-center ${
-              user.status
+              user.usua_stat === true || user.status === "active"
                 ? "text-red-600 hover:bg-red-50"
                 : "text-green-600 hover:bg-green-50"
             }`}
           >
-            {user.status ? (
+            {user.usua_stat === true || user.status === "active" ? (
               <>
                 {" "}
                 <XCircle className="w-4 h-4 mr-2" /> Desactivar{" "}
@@ -88,7 +89,7 @@ const UserContextMenu: React.FC<UserContextMenuProps> = ({
             )}
           </button>
         </>
-      )}
+      )} */}
 
       {/* --- Nueva opción de Eliminar --- */}
       {onDeleteRequest && (

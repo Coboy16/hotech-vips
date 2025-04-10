@@ -6,6 +6,7 @@ import {
 import { LicenseInfoForUserForm } from "../../../../model/user";
 // FIX: Asegúrate que User tenga TODOS los campos necesarios (rol_id, structure_id, etc.)
 import { User } from "../types/user";
+import { mapStructureType } from "./structureTypeMapper";
 
 /**
  * Convierte los datos del FORMULARIO (UserFormData) al DTO para la API (Crear/Actualizar).
@@ -140,12 +141,13 @@ export const apiUserToFormData = (
 
   // --- Validación y Mapeo de structure_type ---
   let validatedStructureType: StructureType | "" = "";
-  let structureId = user.structure_id || ""; // Usar el ID del usuario si existe
+  let structureId = user.structure_id || "";
 
   if (user.structure_type) {
-    const parseResult = structureTypeEnum.safeParse(user.structure_type);
-    if (parseResult.success) {
-      validatedStructureType = parseResult.data;
+    // Usar el mapper para normalizar el tipo
+    validatedStructureType = mapStructureType(user.structure_type);
+
+    if (validatedStructureType) {
       console.log(
         `[userAdapters] Structure type validado: ${validatedStructureType}`
       );
@@ -160,12 +162,11 @@ export const apiUserToFormData = (
       console.warn(
         `[userAdapters] Valor de structure_type inválido ('${user.structure_type}') recibido. Se establecerá como "".`
       );
-      validatedStructureType = ""; // Establecer vacío si no es válido
-      structureId = ""; // Limpiar ID si el tipo es inválido
+      structureId = "";
     }
   } else {
     console.log("[userAdapters] No structure_type encontrado en el usuario.");
-    structureId = ""; // Limpiar ID si no hay tipo
+    structureId = "";
   }
   // --- Fin Validación ---
 

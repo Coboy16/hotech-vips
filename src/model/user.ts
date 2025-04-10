@@ -71,6 +71,7 @@ export interface User {
   usua_fein: string;
   usua_feve: string;
   usua_stat: boolean;
+  is_admin_hotech: boolean;
   rol_id: string;
   role?: RoleInfo; // Objeto con información del rol
   userModule?: UserModuleItem[]; // Array de módulos asignados al usuario
@@ -117,6 +118,19 @@ export interface LicenseInfoForUserForm {
   id: string;
   name: string;
   code: string;
+}
+export interface UpdatePasswordResponse {
+  statusCode: number;
+  // data: User; // Devuelve el usuario actualizado
+  message: string;
+  error?: string;
+  data?: {
+    user_id: string;
+    usua_corr: string;
+    usua_noco: string;
+    usua_nomb: string;
+    // Add other User properties here
+  } & User;
 }
 // // Deprecado: Ya no usamos este mapa booleano, usamos userModule
 // export interface ModulesPermissions {

@@ -1,2 +1,2 @@
 export { LogoutModal } from "./LogoutModal";
-export { RecoveryModal } from "./RecoveryModal";
+export { RecoveryModal } from "./recovery/RecoveryModal";

@@ -14,22 +14,22 @@ import {
   Phone,
   Key,
   Network,
+  ChevronRight,
 } from "lucide-react";
 
 import { UserFormData, StructureType } from "../../schemas/userSchema";
 import { StructureSelector } from "./StructureSelector";
 import { RoleSelector } from "./RoleSelector";
-import UserModuleSelector, {
-  AvailableModuleOption,
-} from "./UserModuleSelector";
+import { AvailableModuleOption } from "./UserModuleSelector";
 import { LicenseInfoForUserForm } from "../../../../../model";
 
 // Importar hooks personalizados
 import { useUserForm } from "../../hooks/userFrom/useUserForm";
 import { useStructureTree } from "../../hooks/userFrom/useStructureTree";
 import { useFormTabs } from "../../hooks/userFrom/useFormTabs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { roleService } from "../../services/roleService";
+import { mapStructureType } from "../../utils/structureTypeMapper";
 
 interface UserFormProps {
   user?: any | null;
@@ -63,6 +63,65 @@ UserFormProps) {
     "basic" | "access" | "structures"
   >("basic");
 
+  const processedUser = useMemo(() => {
+    if (!user) return null;
+
+    return {
+      ...user,
+      // Si no existe firstName o lastName, extraerlos del nombre completo
+      firstName:
+        user.firstName || (user.usua_nomb ? user.usua_nomb.split(" ")[0] : ""),
+      lastName:
+        user.lastName ||
+        (user.usua_nomb ? user.usua_nomb.split(" ").slice(1).join(" ") : ""),
+
+      // Si no existe email, usar usua_corr
+      email: user.email || user.usua_corr || "",
+
+      // Si no existe phone, usar usua_noco
+      phone: user.phone || user.usua_noco || "",
+
+      // Si usua_stat no es booleano, convertirlo
+      usua_stat:
+        typeof user.usua_stat === "boolean"
+          ? user.usua_stat
+          : user.status === "active" ||
+            user.usua_stat === "true" ||
+            user.usua_stat === true ||
+            user.usua_stat === 1 ||
+            user.usua_stat === "1",
+
+      // Status basado en usua_stat
+      status:
+        (typeof user.usua_stat === "boolean" && user.usua_stat) ||
+        user.usua_stat === "true" ||
+        user.usua_stat === true ||
+        user.usua_stat === 1 ||
+        user.usua_stat === "1"
+          ? "active"
+          : "inactive",
+
+      // Si structure_type es 'organization', convertirlo a 'company'
+      structure_type: user.structure_type
+        ? mapStructureType(user.structure_type)
+        : "",
+
+      // Si userStructures existe, procesar también ahí
+      userStructures: user.userStructures
+        ? user.userStructures.map((us: any) => ({
+            ...us,
+            structure_type: us.structure_type
+              ? mapStructureType(us.structure_type)
+              : "",
+          }))
+        : undefined,
+
+      // Asegurar que rol_id exista
+      rol_id: user.rol_id || "",
+    };
+  }, [user]);
+
+  console.log("[UserForm] Usuario procesado:", processedUser);
   // Usar hook de formulario
   const {
     register,
@@ -79,73 +138,82 @@ UserFormProps) {
     trigger,
     watch,
   } = useUserForm({
-    user,
+    user: processedUser,
     licenseInfo,
     onSave,
   });
+  const selectedRoleId = watch("rol_id");
 
   useEffect(() => {
-    const selectedRoleId = watch("rol_id");
+    console.log(
+      `[UserForm] Inicialización - rol_id detectado: ${selectedRoleId}`
+    );
 
-    if (!selectedRoleId) {
-      console.log("[UserForm] No hay rol seleccionado, limpiando módulos");
-      setRoleModules([]);
-      return;
-    }
+    // Solo ejecutar en la primera carga cuando hay un rol seleccionado y no hay módulos cargados
+    if (selectedRoleId && roleModules.length === 0) {
+      console.log(
+        `[UserForm] Cargando módulos iniciales para rol: ${selectedRoleId}`
+      );
 
-    console.log(`[UserForm] Cargando módulos para rol: ${selectedRoleId}`);
+      // Función para cargar los módulos del rol
+      const loadInitialRoleModules = async () => {
+        try {
+          console.log(
+            `[UserForm] Cargando módulos para rol inicial: ${selectedRoleId}`
+          );
 
-    const fetchRoleDetails = async () => {
-      try {
-        // Obtener detalles del rol
-        const roleDetails = await roleService.getRoleById(selectedRoleId);
+          // Obtener detalles del rol
+          const roleDetails = await roleService.getRoleById(selectedRoleId);
 
-        // Agregar logging detallado para diagnosticar
-        console.log("[UserForm] Rol recibido:", roleDetails);
-        console.log("[UserForm] Módulos en rol:", roleDetails?.rolesModules);
+          if (!roleDetails) {
+            console.warn(
+              "[UserForm] El rol inicial no tiene datos o no existe"
+            );
+            setRoleModules([]);
+            return;
+          }
 
-        // Verificar si hay datos de rol y módulos
-        if (roleDetails && Array.isArray(roleDetails.rolesModules)) {
-          // Transformar al formato que espera el componente UserModuleSelector
-          const formattedModules: AvailableModuleOption[] =
-            roleDetails.rolesModules
+          console.log("[UserForm] Rol inicial recibido:", roleDetails);
+
+          // Verificar si hay módulos en el rol
+          if (roleDetails && Array.isArray(roleDetails.rolesModules)) {
+            // Transformar al formato que espera el componente
+            const formattedModules = roleDetails.rolesModules
               .filter((rm) => rm.module && rm.module.module_id)
               .map((rm) => ({
                 id: rm.module.module_id,
-                label: formatModuleName(rm.module.name),
+                label: formatModuleName(rm.module.name || "Módulo sin nombre"),
               }));
 
-          console.log("[UserForm] Módulos formateados:", formattedModules);
+            console.log(
+              "[UserForm] Módulos iniciales formateados:",
+              formattedModules
+            );
 
-          if (formattedModules.length > 0) {
-            // Actualizar estado y formulario
+            // Actualizar el estado con los módulos
             setRoleModules(formattedModules);
 
-            // Actualizar el campo userPermissions con los IDs de los módulos
+            // Actualizar el campo userPermissions en el formulario
             const moduleIds = formattedModules.map((m) => m.id);
-            console.log("[UserForm] IDs de módulos a establecer:", moduleIds);
-            setValue("userPermissions", moduleIds, { shouldValidate: true });
+            setValue("userPermissions", moduleIds);
           } else {
             console.warn(
-              "[UserForm] No se encontraron módulos válidos para el rol"
+              "[UserForm] El rol inicial no tiene módulos asignados"
             );
             setRoleModules([]);
-            setValue("userPermissions", [], { shouldValidate: true });
+            setValue("userPermissions", []);
           }
-        } else {
-          console.warn("[UserForm] Estructura de rol inválida o sin módulos");
+        } catch (error) {
+          console.error("[UserForm] Error al cargar módulos iniciales:", error);
           setRoleModules([]);
-          setValue("userPermissions", [], { shouldValidate: true });
+          setValue("userPermissions", []);
         }
-      } catch (error) {
-        console.error("[UserForm] Error al cargar módulos del rol:", error);
-        setRoleModules([]);
-        setValue("userPermissions", [], { shouldValidate: true });
-      }
-    };
+      };
 
-    fetchRoleDetails();
-  }, [watch("rol_id")]);
+      // Ejecutar la carga de módulos iniciales
+      loadInitialRoleModules();
+    }
+  }, [watch("rol_id"), setValue, roleModules.length]); // Dependencias importantes
 
   // Usar hook de estructura
   const {
@@ -460,11 +528,95 @@ UserFormProps) {
                   render={({ field }) => (
                     <RoleSelector
                       selectedRole={field.value}
-                      onChange={(roleId) => {
+                      onChange={async (roleId) => {
                         console.log("[UserForm] Rol seleccionado:", roleId);
+
+                        // Actualizar el campo rol_id en el formulario
                         field.onChange(roleId);
 
-                        // Guardar el valor en el formulario
+                        // Limpiar los módulos actuales mientras se cargan los nuevos
+                        setRoleModules([]);
+
+                        if (roleId) {
+                          console.log(
+                            `[UserForm] Cargando módulos para el nuevo rol: ${roleId}`
+                          );
+
+                          try {
+                            // Obtener detalles del rol seleccionado
+                            const roleDetails = await roleService.getRoleById(
+                              roleId
+                            );
+
+                            if (!roleDetails) {
+                              console.warn(
+                                "[UserForm] El rol seleccionado no tiene datos o no existe"
+                              );
+                              setRoleModules([]);
+                              setValue("userPermissions", []);
+                              return;
+                            }
+
+                            console.log(
+                              "[UserForm] Detalles del rol recibidos:",
+                              roleDetails
+                            );
+
+                            // Verificar si hay módulos en el rol
+                            if (
+                              roleDetails &&
+                              Array.isArray(roleDetails.rolesModules)
+                            ) {
+                              // Transformar al formato que espera el componente
+                              const formattedModules = roleDetails.rolesModules
+                                .filter(
+                                  (rm) => rm.module && rm.module.module_id
+                                )
+                                .map((rm) => ({
+                                  id: rm.module.module_id,
+                                  label: formatModuleName(
+                                    rm.module.name || "Módulo sin nombre"
+                                  ),
+                                }));
+
+                              console.log(
+                                "[UserForm] Módulos del nuevo rol formateados:",
+                                formattedModules
+                              );
+
+                              // Actualizar el estado con los módulos
+                              setRoleModules(formattedModules);
+
+                              // Actualizar el campo userPermissions en el formulario
+                              const moduleIds = formattedModules.map(
+                                (m) => m.id
+                              );
+                              setValue("userPermissions", moduleIds);
+                            } else {
+                              console.warn(
+                                "[UserForm] El rol seleccionado no tiene módulos asignados"
+                              );
+                              setRoleModules([]);
+                              setValue("userPermissions", []);
+                            }
+                          } catch (error) {
+                            console.error(
+                              "[UserForm] Error al cargar módulos del nuevo rol:",
+                              error
+                            );
+                            setRoleModules([]);
+                            setValue("userPermissions", []);
+                          }
+                        } else {
+                          // Si no hay rol seleccionado, limpiamos los módulos
+                          console.log(
+                            "[UserForm] No hay rol seleccionado, limpiando módulos"
+                          );
+                          setRoleModules([]);
+                          setValue("userPermissions", []);
+                        }
+
+                        // Finalmente, validar el campo
                         setValue("rol_id", roleId, { shouldValidate: true });
                       }}
                       disabled={isSavingInternal}
@@ -505,18 +657,48 @@ UserFormProps) {
                         </span>
                       </div>
                     )}
-                    <Controller
-                      name="userPermissions"
-                      control={control}
-                      render={({ field }) => (
-                        <UserModuleSelector
-                          availableModules={roleModules}
-                          selectedPermissions={field.value || []}
-                          onChange={() => {}} // Función vacía porque es de solo lectura
-                          disabled={true}
-                        />
+
+                    {/* Renderizamos los módulos directamente desde el estado local */}
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {roleModules.length > 0 ? (
+                        roleModules.map((module) => (
+                          <div
+                            key={module.id}
+                            className="flex items-center p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => {}}
+                              disabled={true}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <div className="ml-3 flex items-center justify-between w-full">
+                              <div className="text-sm text-gray-700">
+                                {module.label}
+                              </div>
+                              {module.label === "Empleados" ||
+                              module.label === "Reportes" ? (
+                                <ChevronRight className="h-5 w-5 text-gray-400" />
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      ) : watch("rol_id") ? (
+                        <div className="flex items-center justify-center p-4 text-gray-500 italic">
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin text-blue-500" />
+                          <span>Cargando módulos...</span>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic text-center p-4">
+                          Seleccione un rol para ver módulos
+                        </div>
                       )}
-                    />
+                    </div>
+
+                    {/* Este campo hidden mantiene los valores en el formulario */}
+                    <input type="hidden" {...register("userPermissions")} />
+
                     {errors.userPermissions &&
                       touchedFields.userPermissions && (
                         <p className="error-message">
